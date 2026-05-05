@@ -9,6 +9,13 @@ import { curveMonotoneX, curveLinear } from "@visx/curve";
 import type { TrendPoint, SpikeRange } from "@/lib/spike";
 import { detectSeasonal, koreanWeekday } from "@/lib/korean-seasonal";
 
+interface CycleRegion {
+  startPeriod: string;
+  peakPeriod: string;
+  endPeriod: string;
+  intensity: number;
+}
+
 interface Props {
   series: TrendPoint[];
   spikes: SpikeRange[];
@@ -25,6 +32,8 @@ interface Props {
   primaryKeyword?: string;
   /** 비교 키워드 spike 마커 클릭 시 (메인 탭 전환) */
   onSelectExtraSpike?: (keyword: string, spike: SpikeRange) => void;
+  /** 유행 감지 구간 (보라색 음영) */
+  cycles?: CycleRegion[];
 }
 
 const MARGIN = { top: 20, right: 24, bottom: 32, left: 36 };
@@ -48,6 +57,7 @@ export function TrendChart({
   extraSpikes = [],
   primaryKeyword,
   onSelectExtraSpike,
+  cycles = [],
 }: Props) {
   const [hover, setHover] = useState<{ x: number; y: number; p: TrendPoint } | null>(null);
   const [spikeHover, setSpikeHover] = useState<{
@@ -109,7 +119,7 @@ export function TrendChart({
 
   return (
     <div className="relative">
-      <svg width={width} height={height} className="overflow-visible">
+      <svg width={width} height={height} className="overflow-visible" role="img" aria-label="검색 트렌드 시계열 차트">
         <Group left={MARGIN.left} top={MARGIN.top}>
           {/* y축 그리드 */}
           {[0.25, 0.5, 0.75, 1].map((p) => (
@@ -123,6 +133,46 @@ export function TrendChart({
               strokeDasharray="2 4"
             />
           ))}
+
+          {/* 유행 감지 구간 음영 (보라) */}
+          {cycles.map((c, i) => {
+            const x0 = xScale(parsePeriod(c.startPeriod));
+            const x1 = xScale(parsePeriod(c.endPeriod));
+            return (
+              <g key={`cycle-${i}`}>
+                <Bar
+                  x={x0}
+                  y={0}
+                  width={Math.max(2, x1 - x0)}
+                  height={innerH}
+                  fill="#8B5CF6"
+                  fillOpacity={0.1}
+                  rx={4}
+                />
+                {/* 유행 피크 마커 (작은 다이아몬드) */}
+                <polygon
+                  points={(() => {
+                    const cx = xScale(parsePeriod(c.peakPeriod));
+                    const cy = 6;
+                    const s = 4;
+                    return `${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}`;
+                  })()}
+                  fill="#8B5CF6"
+                  fillOpacity={0.7}
+                />
+                <text
+                  x={xScale(parsePeriod(c.peakPeriod))}
+                  y={16}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill="#7C3AED"
+                  fontWeight={600}
+                >
+                  유행{i + 1}
+                </text>
+              </g>
+            );
+          })}
 
           {/* 급등 구간 음영 */}
           {spikes.map((sp, i) => {
@@ -369,7 +419,7 @@ export function TrendChart({
             const seasonal = detectSeasonal(spikeHover.spike.peakPeriod);
             return seasonal.length > 0 ? (
               <div className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
-                🏮 {seasonal.join(", ")}
+                시즌: {seasonal.join(", ")}
               </div>
             ) : null;
           })()}

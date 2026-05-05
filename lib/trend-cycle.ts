@@ -24,6 +24,10 @@ export interface TrendCycle {
   avgRatio: number;
   baselineAvg: number;
   intensity: number; // peakRatio / baseline
+  /** AUC 기반 강도: 기준선 위 면적 합산 (면적이 클수록 강한 유행) */
+  auc: number;
+  /** 정규화된 AUC (일 평균 초과량) */
+  aucPerDay: number;
 }
 
 export interface CycleAnalysis {
@@ -38,15 +42,31 @@ function daysBetween(a: string, b: string): number {
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000);
 }
 
+/**
+ * 유행 사이클 감지.
+ *
+ * 알고리즘:
+ *   1. adaptive threshold — 데이터 분포(평균 + k*표준편차)로 자동 결정하거나, 명시적 threshold 사용
+ *   2. 기준선 넘는 연속 구간 찾기
+ *   3. 각 구간에서 피크 + 시작 + 종료 결정
+ *   4. AUC(면적) 기반 유행 강도 추가 계산
+ *   5. 사이클 간 간격 → 주기성 판단
+ *
+ * @param series 시계열 데이터
+ * @param opts.threshold 기준선 대비 배율. 미지정 시 adaptive (평균 + 1σ 기반)
+ * @param opts.adaptive adaptive threshold 사용 여부 (기본 true, threshold 명시 시 무시)
+ * @param opts.minDurationDays 최소 유행 기간 (기본 5일)
+ * @param opts.mergeGapDays 이 간격 이하면 하나로 병합 (기본 3일)
+ */
 export function detectTrendCycles(
   series: TrendPoint[],
   opts: {
-    threshold?: number; // 기준선 대비 배율 (기본 1.3)
+    threshold?: number; // 기준선 대비 배율 (기본: adaptive)
+    adaptive?: boolean; // adaptive threshold 사용 (기본 true)
     minDurationDays?: number; // 최소 유행 기간 (기본 5일)
     mergeGapDays?: number; // 이 간격 이하면 하나로 병합 (기본 3일)
   } = {}
 ): CycleAnalysis {
-  const threshold = opts.threshold ?? 1.3;
   const minDuration = opts.minDurationDays ?? 5;
   const mergeGap = opts.mergeGapDays ?? 3;
   const n = series.length;
@@ -57,6 +77,24 @@ export function detectTrendCycles(
 
   // 기준선: 전체 평균
   const baseline = series.reduce((s, p) => s + p.ratio, 0) / n;
+
+  // Adaptive threshold: 명시적 threshold가 없으면, 데이터 분포 기반 결정
+  // mean + 1σ 를 cutoff로 사용 → 변동이 크면 threshold 높아지고, 안정적이면 낮아짐
+  let threshold: number;
+  if (opts.threshold != null) {
+    threshold = opts.threshold;
+  } else if (opts.adaptive === false) {
+    threshold = 1.3; // 레거시 기본값
+  } else {
+    // adaptive: (mean + 1*std) / mean 로 threshold 결정
+    const variance = series.reduce((s, p) => s + (p.ratio - baseline) ** 2, 0) / n;
+    const std = Math.sqrt(variance);
+    // threshold = (baseline + std) / baseline = 1 + std/baseline
+    // 최소 1.15, 최대 2.0 으로 클램핑
+    const raw = baseline > 0 ? 1 + std / baseline : 1.3;
+    threshold = Math.max(1.15, Math.min(2.0, raw));
+  }
+
   const cutoff = baseline * threshold;
 
   // 기준선 넘는 연속 구간 찾기
@@ -116,6 +154,15 @@ export function detectTrendCycles(
     const avgRatio = cycleSlice.reduce((s, p) => s + p.ratio, 0) / cycleSlice.length;
     const actualDuration = daysBetween(series[realStart].period, series[realEnd].period);
 
+    // AUC: 기준선 위 면적 (사다리꼴 적분 근사)
+    let auc = 0;
+    for (let k = realStart; k <= realEnd; k++) {
+      const excess = Math.max(series[k].ratio - baseline, 0);
+      auc += excess;
+    }
+    const durationForAuc = Math.max(actualDuration, 1);
+    const aucPerDay = auc / durationForAuc;
+
     cycles.push({
       startIdx: realStart,
       peakIdx,
@@ -128,17 +175,42 @@ export function detectTrendCycles(
       avgRatio: Math.round(avgRatio * 10) / 10,
       baselineAvg: Math.round(baseline * 10) / 10,
       intensity: Math.round((series[peakIdx].ratio / Math.max(baseline, 1)) * 10) / 10,
+      auc: Math.round(auc * 10) / 10,
+      aucPerDay: Math.round(aucPerDay * 100) / 100,
     });
   }
 
+  // 기간이 겹치는 사이클 병합 — 가장 강한 피크만 유지
+  const deduped: TrendCycle[] = [];
+  const used = new Set<number>();
+  // 피크 강도 순으로 처리
+  const byIntensity = [...cycles].sort((a, b) => b.intensity - a.intensity);
+  for (const c of byIntensity) {
+    if (used.has(c.peakIdx)) continue;
+    // 이 사이클과 80% 이상 겹치는 기존 항목이 있으면 skip
+    const overlap = deduped.some((d) => {
+      const overlapStart = Math.max(d.startIdx, c.startIdx);
+      const overlapEnd = Math.min(d.endIdx, c.endIdx);
+      if (overlapStart > overlapEnd) return false;
+      const overlapLen = overlapEnd - overlapStart;
+      const shorterLen = Math.min(d.endIdx - d.startIdx, c.endIdx - c.startIdx);
+      return shorterLen > 0 && overlapLen / shorterLen > 0.5;
+    });
+    if (!overlap) {
+      deduped.push(c);
+      used.add(c.peakIdx);
+    }
+  }
+  const dedupedCycles = deduped;
+
   // 강도 순 정렬
-  cycles.sort((a, b) => b.intensity - a.intensity);
+  dedupedCycles.sort((a, b) => b.intensity - a.intensity);
 
   // 주기성 판단
-  const analysis = analyzeRecurrence(cycles, series);
+  const analysis = analyzeRecurrence(dedupedCycles, series);
 
   return {
-    cycles,
+    cycles: dedupedCycles,
     ...analysis,
   };
 }

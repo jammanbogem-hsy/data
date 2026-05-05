@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { analyzeComments, type CommentAnalysisResult } from "@/lib/comment-analyze";
-import { WordCloud } from "./WordCloud";
+import { WordCloudLazy as WordCloud } from "./WordCloudLazy";
 import { StudentStoryCard } from "./StudentStoryCard";
 
 interface Video {
@@ -54,17 +54,18 @@ export function YouTubeAnalyzer() {
 
   return (
     <div className="space-y-6">
-      {/* 입력 */}
-      <form onSubmit={(e) => { e.preventDefault(); analyze(); }} className="flex items-stretch gap-3">
+      {/* 입력 — 모바일에서 세로 배치 */}
+      <form onSubmit={(e) => { e.preventDefault(); analyze(); }} className="flex items-stretch gap-3 max-md:flex-col">
         <input
           value={url} onChange={(e) => setUrl(e.target.value)}
           placeholder="유튜브 링크를 붙여넣으세요 (예: https://youtu.be/...)"
           disabled={busy}
+          aria-label="분석할 YouTube URL 입력"
           className="h-12 flex-1 rounded-m3-md border px-4 text-base focus:outline-none focus:ring-2"
           style={{ background: "var(--md-surface-container)", borderColor: "var(--md-outline)", color: "var(--md-on-surface)" }}
         />
-        <button type="submit" disabled={busy || !url.trim()} className="m3-btn-filled flex h-12 items-center gap-2 whitespace-nowrap disabled:opacity-50">
-          <span className="m3-icon-sm">play_arrow</span>
+        <button type="submit" disabled={busy || !url.trim()} aria-label={busy ? "분석 진행 중" : "YouTube 영상 분석 시작"} className="m3-btn-filled flex h-12 items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50">
+          <span className="m3-icon-sm" aria-hidden="true">play_arrow</span>
           {busy ? "분석 중..." : "영상 분석"}
         </button>
       </form>
@@ -94,7 +95,7 @@ export function YouTubeAnalyzer() {
             {/* 영상 정보 카드 */}
             <div className="m3-card flex gap-4">
               <a href={`https://youtu.be/${v.videoId}`} target="_blank" rel="noopener noreferrer">
-                <img src={v.thumbnail} alt="" className="h-24 w-40 shrink-0 rounded-m3-sm object-cover" />
+                <img src={v.thumbnail} alt={`${v.title} 썸네일`} loading="lazy" sizes="160px" className="h-24 w-40 shrink-0 rounded-m3-sm object-cover" />
               </a>
               <div className="min-w-0 flex-1">
                 <a href={`https://youtu.be/${v.videoId}`} target="_blank" rel="noopener noreferrer" className="m3-title-md hover:underline" style={{ color: "var(--md-on-surface)", textDecoration: "none" }}>

@@ -184,13 +184,16 @@ export function RelatedKeywordsGraph({
   return (
     <div className="space-y-2">
       {data.commentary && (
-        <p className="text-xs italic text-slate-600 dark:text-slate-400">💡 {data.commentary}</p>
+        <p className="m3-body-sm italic flex items-center gap-1">
+          <span className="m3-icon-sm" style={{ fontSize: 14, color: "var(--md-primary)" }}>lightbulb</span>
+          {data.commentary}
+        </p>
       )}
-      <div className="relative rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+      <div className="relative rounded-2xl" style={{ border: "1px solid var(--md-outline-variant)", background: "var(--md-surface-container)" }}>
         <div ref={ref} className="h-[400px] w-full" />
         {selectedNode && (
-          <aside className="absolute right-3 top-3 w-56 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
-            <h4 className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+          <aside className="absolute right-3 top-3 w-56 rounded-xl p-3 backdrop-blur" style={{ background: "color-mix(in srgb, var(--md-surface-container) 95%, transparent)", border: "1px solid var(--md-outline-variant)", boxShadow: "var(--md-elevation-2)" }}>
+            <h4 className="truncate text-sm font-bold" style={{ color: "var(--md-on-surface)" }}>
               {selectedNode.id}
             </h4>
             {selectedNode.category !== "center" && (
@@ -199,20 +202,20 @@ export function RelatedKeywordsGraph({
                   className="inline-block h-2 w-2 rounded-full"
                   style={{ background: CATEGORY_COLOR[selectedNode.category ?? "기타"] }}
                 />
-                <span className="text-slate-500">{selectedNode.category}</span>
-                <span className="ml-auto font-mono text-slate-500">w={selectedNode.weight}</span>
+                <span className="m3-body-sm">{selectedNode.category}</span>
+                <span className="ml-auto font-mono m3-body-sm">w={selectedNode.weight}</span>
               </div>
             )}
             {selectedEdges.length > 0 && (
-              <div className="mt-2 border-t border-slate-100 pt-1.5 dark:border-slate-700">
-                <div className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+              <div className="mt-2 pt-1.5" style={{ borderTop: "1px solid var(--md-outline-variant)" }}>
+                <div className="mb-1 m3-label-sm" style={{ fontSize: 9 }}>
                   연결된 키워드
                 </div>
                 <ul className="space-y-0.5 text-[11px]">
                   {selectedEdges.map((e, i) => (
                     <li key={i} className="flex items-center justify-between">
-                      <span className="truncate text-slate-700 dark:text-slate-300">{e.other}</span>
-                      <span className="ml-2 font-mono text-slate-400">{e.weight}</span>
+                      <span className="truncate" style={{ color: "var(--md-on-surface)" }}>{e.other}</span>
+                      <span className="ml-2 font-mono" style={{ color: "var(--md-on-surface-variant)" }}>{e.weight}</span>
                     </li>
                   ))}
                 </ul>
@@ -220,11 +223,11 @@ export function RelatedKeywordsGraph({
             )}
           </aside>
         )}
-        <div className="absolute bottom-3 left-3 rounded-lg border border-slate-200 bg-white/90 p-2 text-[10px] shadow dark:border-slate-700 dark:bg-slate-900/90">
-          <div className="font-semibold text-slate-700 dark:text-slate-200">카테고리</div>
+        <div className="absolute bottom-3 left-3 rounded-xl p-2 text-[10px]" style={{ background: "color-mix(in srgb, var(--md-surface-container) 92%, transparent)", border: "1px solid var(--md-outline-variant)", boxShadow: "var(--md-elevation-1)" }}>
+          <div className="font-semibold" style={{ color: "var(--md-on-surface)" }}>카테고리</div>
           <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
             {categoryCounts.map(([c, n]) => (
-              <span key={c} className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+              <span key={c} className="flex items-center gap-1" style={{ color: "var(--md-on-surface-variant)" }}>
                 <span
                   className="inline-block h-1.5 w-1.5 rounded-full"
                   style={{ background: CATEGORY_COLOR[c] ?? CATEGORY_COLOR.기타 }}

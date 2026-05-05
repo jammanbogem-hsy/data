@@ -11,8 +11,9 @@ export default async function LegacyTopicsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-        📚 <b>Legacy 뷰</b> — 예전 Python analyzer가 생성한 초등 수업 토픽 카드입니다.
+      <div className="rounded-xl border px-3 py-2 text-xs flex items-center gap-1.5" style={{ borderColor: "var(--md-outline-variant)", background: "var(--md-surface-container-low)", color: "var(--md-on-surface-variant)" }}>
+        <span className="m3-icon-sm" style={{ fontSize: 14, color: "var(--md-primary)" }}>inventory_2</span>
+        <b>Legacy 뷰</b> — 예전 Python analyzer가 생성한 초등 수업 토픽 카드입니다.
         v2부터는 홈의 데이터 마이닝 도구를 쓰세요.{" "}
         <Link href="/legacy/graph" className="underline">온톨로지</Link> ·{" "}
         <Link href="/legacy/flow" className="underline">트렌드</Link>
@@ -20,8 +21,8 @@ export default async function LegacyTopicsPage() {
 
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">오늘의 수업 토픽</h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          <h1 className="m3-headline-sm">오늘의 수업 토픽</h1>
+          <p className="mt-1 m3-body-sm">
             {snapshot
               ? `${snapshot.id} · 수집 ${snapshot.itemCount.toLocaleString()}건 · 토픽 ${snapshot.topicCount}`
               : "아직 수집된 데이터가 없습니다."}
@@ -31,7 +32,7 @@ export default async function LegacyTopicsPage() {
       </div>
 
       {topics.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+        <p className="rounded-2xl border border-dashed p-8 text-center text-sm" style={{ borderColor: "var(--md-outline)", color: "var(--md-on-surface-variant)" }}>
           스냅샷 없음. (Python analyzer 파이프라인은 v2에서 은퇴)
         </p>
       ) : (

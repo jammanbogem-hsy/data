@@ -1,8 +1,124 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { InsightDisplay } from "./InsightDisplay";
 import { DateRangeControl, presetRange, autoTimeUnit, DEFAULT_ADVANCED, type DateRange, type AdvancedOptions } from "./DateRangeControl";
+
+/* ─── 단계별 프로그레스 ─── */
+interface LoadingStep {
+  icon: string;
+  label: string;
+  durationMs: number;
+}
+
+const LOADING_STEPS: LoadingStep[] = [
+  { icon: "newspaper", label: "네이버에서 뉴스와 블로그를 모으고 있어요", durationMs: 3000 },
+  { icon: "smart_display", label: "YouTube에서 영상과 댓글을 찾고 있어요", durationMs: 5000 },
+  { icon: "psychology", label: "AI가 자료를 읽고 분석하고 있어요", durationMs: 15000 },
+];
+
+function LoadingProgress() {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const ms = Date.now() - startRef.current;
+      setElapsed(ms);
+      if (ms >= LOADING_STEPS[0].durationMs + LOADING_STEPS[1].durationMs) {
+        setCurrentStep(2);
+      } else if (ms >= LOADING_STEPS[0].durationMs) {
+        setCurrentStep(1);
+      } else {
+        setCurrentStep(0);
+      }
+    }, 200);
+    return () => clearInterval(interval);
+  }, []);
+
+  const totalDuration = LOADING_STEPS.reduce((s, step) => s + step.durationMs, 0);
+  const progressPercent = Math.min((elapsed / totalDuration) * 100, 95);
+
+  return (
+    <div className="m3-card space-y-4">
+      {/* 전체 진행률 바 */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="m3-body-sm font-medium" style={{ color: "var(--md-primary)" }}>
+            분석 진행 중
+          </span>
+          <span className="m3-body-sm">{Math.round(progressPercent)}%</span>
+        </div>
+        <div
+          className="h-2 w-full overflow-hidden rounded-full"
+          style={{ background: "var(--md-surface-container-high)" }}
+        >
+          <div
+            className="h-full rounded-full transition-all duration-500 ease-out"
+            style={{
+              width: `${progressPercent}%`,
+              background: "var(--md-primary)",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* 단계별 상태 */}
+      <div className="space-y-3">
+        {LOADING_STEPS.map((step, idx) => {
+          const isDone = idx < currentStep;
+          const isActive = idx === currentStep;
+          return (
+            <div
+              key={idx}
+              className="flex items-center gap-3 transition-opacity duration-300"
+              style={{ opacity: isActive ? 1 : isDone ? 0.6 : 0.35 }}
+            >
+              {isDone ? (
+                <span
+                  className="m3-icon-sm"
+                  style={{ color: "var(--md-primary)", fontSize: 20 }}
+                >
+                  check_circle
+                </span>
+              ) : isActive ? (
+                <span
+                  className="m3-icon-sm animate-pulse"
+                  style={{ color: "var(--md-primary)", fontSize: 20 }}
+                >
+                  {step.icon}
+                </span>
+              ) : (
+                <span
+                  className="m3-icon-sm"
+                  style={{ color: "var(--md-outline)", fontSize: 20 }}
+                >
+                  {step.icon}
+                </span>
+              )}
+              <span
+                className="text-sm font-medium"
+                style={{
+                  color: isActive
+                    ? "var(--md-on-surface)"
+                    : "var(--md-on-surface-variant)",
+                }}
+              >
+                {step.label}
+              </span>
+              {isDone && (
+                <span className="m3-body-sm" style={{ color: "var(--md-primary)" }}>
+                  완료
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 interface Response {
   keyword: string;
@@ -58,6 +174,15 @@ interface Response {
     trend: Array<{ period: string; ratio: number }>;
     multiTrend?: Array<{ keyword: string; series: Array<{ period: string; ratio: number }> }>;
   };
+  keywordInsight?: {
+    keyword: string;
+    totalMonthly: number;
+    pcMonthly: number;
+    mobileMonthly: number;
+    mobileRatio: number;
+    compIdx: string;
+    relatedKeywords: Array<{ relKeyword: string; totalQcCnt: number; monthlyPcQcCnt: number; monthlyMobileQcCnt: number; compIdx: string }>;
+  } | null;
 }
 
 export function InvestigateForm({ examples }: { examples: string[] }) {
@@ -68,6 +193,20 @@ export function InvestigateForm({ examples }: { examples: string[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Response | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Ctrl+K (또는 Cmd+K) → 검색창 포커스
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   async function investigate(kw: string, r: DateRange = range) {
     if (!kw.trim()) return;
@@ -120,16 +259,18 @@ export function InvestigateForm({ examples }: { examples: string[] }) {
 
   return (
     <div className="space-y-5">
-      {/* 검색창 + 버튼: 같은 높이(h-12), 정렬 통일 */}
+      {/* 검색창 + 버튼: 모바일에서 세로 배치 */}
       <form
         onSubmit={handleSubmit}
-        className="flex items-stretch gap-3"
+        className="flex items-stretch gap-3 max-md:flex-col"
       >
         <input
+          ref={inputRef}
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="분석하고 싶은 키워드를 입력하세요 (비교: 쉼표로 구분)"
           disabled={busy}
+          aria-label="분석할 키워드 입력"
           className="h-12 flex-1 rounded-m3-md border px-4 text-base focus:outline-none focus:ring-2 disabled:opacity-60"
           style={{
             background: "var(--md-surface-container)",
@@ -140,9 +281,10 @@ export function InvestigateForm({ examples }: { examples: string[] }) {
         <button
           type="submit"
           disabled={busy || !keyword.trim()}
-          className="m3-btn-filled flex h-12 items-center gap-2 whitespace-nowrap disabled:opacity-50"
+          aria-label={busy ? "분석 진행 중" : "키워드 분석 시작"}
+          className="m3-btn-filled flex h-12 items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
         >
-          <span className="m3-icon-sm">search</span>
+          <span className="m3-icon-sm" aria-hidden="true">search</span>
           {busy ? "분석 중…" : "분석 시작"}
         </button>
       </form>
@@ -172,6 +314,12 @@ export function InvestigateForm({ examples }: { examples: string[] }) {
       {/* 쉬운 안내 문구 */}
       <p className="m3-body-sm">
         쉼표로 여러 키워드를 넣으면 한 차트에서 비교할 수 있어요. 첫 번째 키워드가 주인공이 됩니다.
+        <span
+          className="ml-2 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium"
+          style={{ borderColor: "var(--md-outline)", color: "var(--md-on-surface-variant)" }}
+        >
+          <kbd>Ctrl</kbd>+<kbd>K</kbd> 검색창 포커스
+        </span>
       </p>
 
       {/* 예시 칩 */}
@@ -194,17 +342,7 @@ export function InvestigateForm({ examples }: { examples: string[] }) {
         ))}
       </div>
 
-      {busy && (
-        <div className="m3-card animate-pulse space-y-2">
-          <div className="flex items-center gap-2 text-sm" style={{ color: "var(--md-primary)" }}>
-            <span className="m3-icon-sm">hourglass_top</span>
-            네이버 뉴스, YouTube, 검색 트렌드를 모아오고 있어요…
-          </div>
-          <p className="m3-body-sm">
-            AI가 자료를 읽고 왜 이 키워드가 떴는지 분석하고 있습니다.
-          </p>
-        </div>
-      )}
+      {busy && <LoadingProgress />}
 
       {error && (
         <div

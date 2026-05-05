@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CitationText, buildCitationMap } from "./CitationText";
 
 interface Hypothesis {
   title: string;
@@ -22,7 +23,7 @@ const CONF = {
   low: { text: "낮음", bg: "var(--md-outline)", color: "var(--md-on-surface)" },
 };
 
-export function HypothesisCard({ index, hypothesis, keyword }: { index: number; hypothesis: Hypothesis; keyword: string }) {
+export function HypothesisCard({ index, hypothesis, keyword, citations }: { index: number; hypothesis: Hypothesis; keyword: string; citations?: Record<string, any> }) {
   const [deepened, setDeepened] = useState<DeepenResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +44,21 @@ export function HypothesisCard({ index, hypothesis, keyword }: { index: number; 
     } catch (e) { setError((e as Error).message); } finally { setLoading(false); }
   }
 
+  // deepened 검증 결과의 E형식 citations 동적 생성
+  const allCitations = { ...(citations ?? {}) };
+  if (deepened?.evidence) {
+    deepened.evidence.forEach((ev, ei) => {
+      ev.sample?.forEach((s: any, si: number) => {
+        allCitations[`E${ei + 1}-${si + 1}`] = {
+          label: `E${ei + 1}-${si + 1}`,
+          title: s.title,
+          link: s.link,
+          pubDate: s.pubDate,
+        };
+      });
+    });
+  }
+
   const conf = CONF[current.confidence] ?? CONF.medium;
 
   return (
@@ -52,13 +68,15 @@ export function HypothesisCard({ index, hypothesis, keyword }: { index: number; 
         <span className="rounded-m3-sm px-2 py-0.5 text-[11px] font-semibold" style={{ background: conf.bg, color: conf.color }}>{conf.text}</span>
       </div>
       <h4 className="mt-2 text-sm font-bold" style={{ color: "var(--md-on-surface)" }}>{current.title}</h4>
-      <p className="mt-1.5 flex-1 m3-body-sm leading-relaxed">{current.reasoning}</p>
+      <p className="mt-1.5 flex-1 m3-body-sm leading-relaxed">
+        <CitationText text={current.reasoning} citations={allCitations} />
+      </p>
       {current.evidence?.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="mt-2 space-y-1">
           {current.evidence.slice(0, 6).map((ev, j) => (
-            <span key={j} className="rounded-m3-sm px-1.5 py-0.5 font-mono text-[10px]" style={{ background: "var(--md-surface-container-high)", color: "var(--md-on-surface-variant)" }}>
-              {ev.slice(0, 60)}
-            </span>
+            <div key={j} className="rounded-m3-sm px-2 py-1 text-[11px] leading-relaxed" style={{ background: "var(--md-surface-container-high)", color: "var(--md-on-surface-variant)" }}>
+              <CitationText text={ev} citations={allCitations} />
+            </div>
           ))}
         </div>
       )}

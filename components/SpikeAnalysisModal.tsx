@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SpikeRange } from "@/lib/spike";
+import { CitationText } from "./CitationText";
 
 interface Hypothesis {
   title: string;
@@ -95,10 +96,49 @@ export function SpikeAnalysisModal({
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeNav, setActiveNav] = useState("overview");
 
+  // 출처 맵: peakEvidence에서 V1, N1 등 생성
+  const citations = useMemo(() => {
+    const map: Record<string, any> = {};
+    peakEvidence?.peakVideos?.forEach((v, i) => {
+      map[`V${i + 1}`] = { label: `V${i + 1}`, title: v.title, description: v.channelTitle, link: `https://youtu.be/${v.videoId}`, pubDate: v.publishedAt };
+    });
+    peakEvidence?.peakNews?.forEach((n, i) => {
+      map[`N${i + 1}`] = { label: `N${i + 1}`, title: n.title, description: n.description?.slice(0, 120), link: n.link, pubDate: n.pubDate };
+    });
+    peakEvidence?.peakBlogs?.forEach((b, i) => {
+      const idx = (peakEvidence?.peakNews?.length ?? 0) + i + 1;
+      map[`N${idx}`] = { label: `N${idx}`, title: b.title, description: b.description?.slice(0, 120), link: b.link, pubDate: b.pubDate };
+    });
+    peakEvidence?.peakComments?.forEach((c, i) => {
+      map[`C${i + 1}`] = { label: `C${i + 1}`, title: c.text?.slice(0, 80), description: `좋아요 ${c.likeCount ?? 0}` };
+    });
+    return map;
+  }, [peakEvidence]);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      // Focus trap: Tab cycles within modal
+      if (e.key === "Tab" && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+        } else {
+          if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      }
+    };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
+    // Auto-focus the modal on open
+    modalRef.current?.focus();
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [onClose]);
 
@@ -109,10 +149,18 @@ export function SpikeAnalysisModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6" onClick={onClose}>
-      <div className="fixed inset-0" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }} />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 max-md:p-0"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${keyword} 급등 분석 모달`}
+    >
+      <div className="fixed inset-0" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }} aria-hidden="true" />
       <div
-        className="relative flex h-[90vh] w-full max-w-5xl overflow-hidden rounded-m3-lg"
+        ref={modalRef}
+        tabIndex={-1}
+        className="relative flex h-[90vh] w-full max-w-5xl overflow-hidden rounded-m3-lg max-md:h-full max-md:max-w-none max-md:rounded-none"
         style={{ background: "var(--md-surface-container)", boxShadow: "var(--md-elevation-3)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -150,11 +198,11 @@ export function SpikeAnalysisModal({
           {/* 닫기 */}
           <button
             onClick={onClose}
-            aria-label="close"
+            aria-label="모달 닫기"
             className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full transition"
             style={{ background: "var(--md-surface-container-high)", color: "var(--md-on-surface-variant)" }}
           >
-            <span className="m3-icon-sm">close</span>
+            <span className="m3-icon-sm" aria-hidden="true">close</span>
           </button>
 
           {/* 헤더 */}
@@ -216,7 +264,7 @@ export function SpikeAnalysisModal({
                   }}
                 >
                   <div className="whitespace-pre-line text-sm leading-relaxed" style={{ color: "var(--md-on-surface)" }}>
-                    {data.summary}
+                    <CitationText text={data.summary} citations={citations} />
                   </div>
                 </div>
               </section>
@@ -234,7 +282,7 @@ export function SpikeAnalysisModal({
                         <h4 className="m3-label-sm mb-2">전날 (D-1)</h4>
                         <ul className="space-y-1.5 m3-body-sm">
                           {data.prevDayEvents!.map((e, i) => (
-                            <li key={i}>{e.event} <span className="m3-body-sm opacity-60">{e.evidence}</span></li>
+                            <li key={i}><CitationText text={`${e.event} ${e.evidence}`} citations={citations} /></li>
                           ))}
                         </ul>
                       </div>
@@ -244,7 +292,7 @@ export function SpikeAnalysisModal({
                         <h4 className="m3-label-sm mb-2">당일 (D)</h4>
                         <ul className="space-y-1.5 m3-body-sm">
                           {data.sameDayEvents!.map((e, i) => (
-                            <li key={i}>{e.event} <span className="m3-body-sm opacity-60">{e.evidence}</span></li>
+                            <li key={i}><CitationText text={`${e.event} ${e.evidence}`} citations={citations} /></li>
                           ))}
                         </ul>
                       </div>
@@ -287,7 +335,7 @@ export function SpikeAnalysisModal({
                             </span>
                           </div>
                           <h4 className="mt-2 text-sm font-bold" style={{ color: "var(--md-on-surface)" }}>{h.title}</h4>
-                          <p className="mt-1.5 flex-1 m3-body-sm leading-relaxed">{h.reasoning}</p>
+                          <p className="mt-1.5 flex-1 m3-body-sm leading-relaxed"><CitationText text={h.reasoning} citations={citations} /></p>
                           {h.evidence?.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
                               {h.evidence.slice(0, 4).map((ev, j) => (
@@ -315,9 +363,9 @@ export function SpikeAnalysisModal({
                     {peakEvidence.peakVideos.slice(0, 6).map((v, i) => (
                       <a key={v.videoId} href={`https://youtu.be/${v.videoId}`} target="_blank" rel="noopener noreferrer"
                          className="m3-card-outlined flex gap-3 transition hover:shadow-m3-2">
-                        <img src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`} alt="" className="h-14 w-24 rounded-m3-sm object-cover" />
+                        <img src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`} alt={`${v.title} 썸네일`} loading="lazy" sizes="96px" className="h-14 w-24 rounded-m3-sm object-cover" />
                         <div className="min-w-0 flex-1">
-                          <div className="m3-body-sm flex justify-between"><span className="font-mono">PV{i + 1}</span><span>{v.publishedAt?.slice(0, 10)}</span></div>
+                          <div className="m3-body-sm flex justify-between"><span className="font-mono">유튜브{i + 1}</span><span>{v.publishedAt?.slice(0, 10)}</span></div>
                           <p className="line-clamp-2 text-sm font-medium" style={{ color: "var(--md-on-surface)" }}>{v.title}</p>
                           <div className="m3-body-sm">{v.channelTitle} · {v.viewCount.toLocaleString()}회</div>
                         </div>
@@ -340,7 +388,7 @@ export function SpikeAnalysisModal({
                       .map((n, i) => (
                         <a key={n.link + i} href={n.link} target="_blank" rel="noopener noreferrer"
                            className="m3-card-outlined block transition hover:shadow-m3-1">
-                          <div className="flex justify-between m3-body-sm"><span className="font-mono">PN{i + 1}</span><span>{n.pubDate?.slice(0, 10)}</span></div>
+                          <div className="flex justify-between m3-body-sm"><span className="font-mono">뉴스{i + 1}</span><span>{n.pubDate?.slice(0, 10)}</span></div>
                           <h5 className="text-sm font-medium" style={{ color: "var(--md-on-surface)" }}>{n.title}</h5>
                           <p className="line-clamp-1 m3-body-sm">{n.description}</p>
                         </a>

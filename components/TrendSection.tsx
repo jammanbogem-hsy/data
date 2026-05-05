@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { TrendChart } from "./TrendChart";
+import { TrendChartLazy as TrendChart } from "./TrendChartLazy";
 import type { TrendPoint, SpikeRange } from "@/lib/spike";
 import type { CorrectedPoint } from "@/lib/correction";
+import type { TrendCycle } from "@/lib/trend-cycle";
 
 /* ── 상수 ──────────────────────────────────────── */
 const COMPARE_PALETTE = ["#F59E0B", "#EC4899", "#8B5CF6", "#0EA5E9"];
@@ -25,6 +26,7 @@ function TrendChartResponsive(props: {
   extraSpikes?: Array<{ keyword: string; color: string; spikes: SpikeRange[] }>;
   primaryKeyword?: string;
   onSelectExtraSpike?: (keyword: string, spike: SpikeRange) => void;
+  cycles?: Array<{ startPeriod: string; peakPeriod: string; endPeriod: string; intensity: number }>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(720);
@@ -51,6 +53,7 @@ function TrendChartResponsive(props: {
         extraSpikes={props.extraSpikes}
         primaryKeyword={props.primaryKeyword}
         onSelectExtraSpike={props.onSelectExtraSpike}
+        cycles={props.cycles}
       />
     </div>
   );
@@ -89,6 +92,7 @@ interface TrendSectionProps {
   spikeResultStatuses: Record<string, SpikeResultStatus>;
   rawChart: boolean;
   showCorrected: boolean;
+  cycles?: TrendCycle[];
   setRawChart: (v: boolean) => void;
   setShowCorrected: (v: boolean) => void;
   setModalKey: (key: string) => void;
@@ -113,6 +117,7 @@ export function TrendSection({
   spikeResultStatuses,
   rawChart,
   showCorrected,
+  cycles,
   setRawChart,
   setShowCorrected,
   setModalKey,
@@ -120,24 +125,28 @@ export function TrendSection({
   if (trend.length === 0) return null;
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+    <section className="m3-card">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-base font-semibold">📈 검색 트렌드</h3>
-          <p className="mt-1 text-xs text-slate-500" title="네이버 데이터랩 검색어 트렌드 API (PC+모바일 통합)">
+          <h3 className="m3-section-title">
+            <span className="m3-icon" style={{ color: "var(--md-primary)" }}>trending_up</span>
+            검색 트렌드
+          </h3>
+          <p className="mt-1 m3-body-sm" title="네이버 데이터랩 검색어 트렌드 API (PC+모바일 통합)">
             데이터 출처: <b>네이버 데이터랩</b> ·{" "}
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-slate-800">
+            <span className="rounded-md px-1.5 py-0.5 font-mono text-[10px]" style={{ background: "var(--md-surface-container-high)", color: "var(--md-on-surface-variant)" }}>
               {range ? TIME_UNIT_LABEL[range.timeUnit] : "?"} {trend.length}p
             </span>{" "}
             · 기간 내 최대값을 100 으로 정규화
           </p>
           {range?.timeUnit !== "date" && (
-            <p className="mt-1 text-[10px] text-amber-600">
-              ⚠ 현재 {TIME_UNIT_LABEL[range?.timeUnit ?? "month"]} 단위라 DataLab 공식 사이트(일간)와 모양이 다를 수 있습니다. 일간 보려면 기간을 3년 이하로 설정하세요.
+            <p className="mt-1 text-[10px] flex items-center gap-1" style={{ color: "#F57F17" }}>
+              <span className="m3-icon-sm" style={{ fontSize: 14, color: "#F57F17" }}>warning</span>
+              현재 {TIME_UNIT_LABEL[range?.timeUnit ?? "month"]} 단위라 DataLab 공식 사이트(일간)와 모양이 다를 수 있습니다. 일간 보려면 기간을 3년 이하로 설정하세요.
             </p>
           )}
         </div>
-        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+        <label className="flex cursor-pointer items-center gap-1.5 m3-body-sm">
           <input
             type="checkbox"
             checked={rawChart}
@@ -146,30 +155,37 @@ export function TrendSection({
           />
           DataLab 원본 스타일
         </label>
-        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+        <label className="flex cursor-pointer items-center gap-1.5 m3-body-sm">
           <input
             type="checkbox"
             checked={showCorrected}
             onChange={(e) => setShowCorrected(e.target.checked)}
             className="h-3.5 w-3.5"
           />
-          📊 보정 지수 (요일 효과 제거)
+          <span className="m3-icon-sm" style={{ fontSize: 14, color: "var(--md-primary)" }}>bar_chart</span>
+          보정 지수 (요일 효과 제거)
         </label>
         {allSpikeTabs.length > 0 && (
           <div className="flex max-w-full flex-wrap items-center gap-1.5">
-            <span className="text-xs text-slate-500">
+            <span className="m3-body-sm">
               급등 선택 ({allSpikeTabs.length}):
             </span>
             {allSpikeTabs.slice(0, 14).map((t) => {
               const status = spikeResultStatuses[t.key]?.status;
-              const statusDot =
+              const statusIcon =
                 status === "done"
-                  ? "✓"
+                  ? "check_circle"
                   : status === "error"
-                    ? "⚠"
+                    ? "error"
                     : status === "loading" || status === "pending"
-                      ? "…"
-                      : "○";
+                      ? "hourglass_top"
+                      : "radio_button_unchecked";
+              const statusColor =
+                status === "done"
+                  ? "var(--md-primary)"
+                  : status === "error"
+                    ? "var(--md-error)"
+                    : "var(--md-on-surface-variant)";
               return (
                 <button
                   key={t.key}
@@ -179,7 +195,7 @@ export function TrendSection({
                     background: `${t.color}22`,
                     color: t.color,
                   }}
-                  title={`클릭하여 분석 보기 · ${t.keyword} · ${t.spike.startPeriod} ~ ${t.spike.endPeriod} (×${t.spike.multiplier.toFixed(1)})`}
+                  title={`클릭하여 분석 보기 · ${t.keyword} · ${t.spike.startPeriod} ~ ${t.spike.endPeriod} (x${t.spike.multiplier.toFixed(1)})`}
                 >
                   <span
                     className="inline-block h-1.5 w-1.5 rounded-full"
@@ -187,11 +203,9 @@ export function TrendSection({
                   />
                   <span className="font-semibold">{t.keyword}</span>
                   <span className="opacity-80">{t.spike.peakPeriod.slice(5)}</span>
-                  <span className="tabular-nums">×{t.spike.multiplier.toFixed(1)}</span>
-                  <span
-                    className={`ml-0.5 text-[10px] ${status === "done" ? "text-emerald-500" : status === "error" ? "text-rose-500" : "text-slate-400"}`}
-                  >
-                    {statusDot}
+                  <span className="tabular-nums">x{t.spike.multiplier.toFixed(1)}</span>
+                  <span className="m3-icon-sm ml-0.5" style={{ fontSize: 12, color: statusColor }}>
+                    {statusIcon}
                   </span>
                 </button>
               );
@@ -203,6 +217,7 @@ export function TrendSection({
         series={trend}
         spikes={spikes}
         selectedSpikeIdx={selectedSpikeIdx}
+        cycles={cycles?.map((c) => ({ startPeriod: c.startPeriod, peakPeriod: c.peakPeriod, endPeriod: c.endPeriod, intensity: c.intensity }))}
         onSelectSpike={(_sp) => {
           // 주 키워드 점/음영 클릭 시 모달 열기
           const idx = detectedSpikes.findIndex((s) => s.startPeriod === _sp.startPeriod);
@@ -221,7 +236,7 @@ export function TrendSection({
           // 보정 지수 시리즈 (토글 ON 시)
           ...(showCorrected
             ? [{
-                keyword: `📊 ${keyword} 보정`,
+                keyword: `${keyword} 보정`,
                 series: correctedSeries.map((p) => ({ period: p.period, ratio: p.corrected })),
                 color: "#A855F7",
                 dashed: true,
@@ -238,7 +253,7 @@ export function TrendSection({
             })),
           // Wikipedia 조회수 (점선, 회색, 보조)
           ...(wikipediaTrend ?? []).map((w) => ({
-            keyword: `📖 ${w.keyword}`,
+            keyword: `wiki:${w.keyword}`,
             series: w.series,
             color: "#6B7280",
             dashed: true,
@@ -249,10 +264,10 @@ export function TrendSection({
       {/* 다중 키워드 + Wikipedia 범례 */}
       {((multiTrend && multiTrend.length > 1) ||
         (wikipediaTrend && wikipediaTrend.length > 0)) && (
-        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
-          <span className="text-slate-500">범례:</span>
+        <div className="mt-2 flex flex-wrap items-center gap-3 m3-body-sm">
+          <span style={{ color: "var(--md-on-surface-variant)" }}>범례:</span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-0.5 w-5 bg-green-500" />
+            <span className="inline-block h-0.5 w-5" style={{ background: "var(--md-primary)" }} />
             <b>{keyword}</b> (주·DataLab)
           </span>
           {(multiTrend ?? [])
@@ -275,18 +290,19 @@ export function TrendSection({
                     "repeating-linear-gradient(to right, #6B7280 0, #6B7280 4px, transparent 4px, transparent 7px)",
                 }}
               />
-              📖 wiki:{w.keyword}
+              <span className="m3-icon-sm" style={{ fontSize: 14 }}>menu_book</span> wiki:{w.keyword}
             </span>
           ))}
         </div>
       )}
       {isNaturalPeakOnly && (
-        <p className="mt-2 text-center text-xs text-blue-500">
-          📌 이동평균 돌파형 급등은 없지만, 전체에서 가장 높았던 <b>{naturalPeak!.peakPeriod}</b> 구간을 자동 분석합니다 (평균 대비 ×{naturalPeak!.multiplier.toFixed(1)})
+        <p className="mt-2 text-center m3-body-sm flex items-center justify-center gap-1" style={{ color: "var(--md-primary)" }}>
+          <span className="m3-icon-sm" style={{ fontSize: 14 }}>push_pin</span>
+          이동평균 돌파형 급등은 없지만, 전체에서 가장 높았던 <b>{naturalPeak!.peakPeriod}</b> 구간을 자동 분석합니다 (평균 대비 x{naturalPeak!.multiplier.toFixed(1)})
         </p>
       )}
       {spikes.length === 0 && (
-        <p className="mt-2 text-center text-xs text-slate-400">
+        <p className="mt-2 text-center m3-body-sm">
           이 기간에는 뚜렷한 피크가 감지되지 않았습니다.
         </p>
       )}

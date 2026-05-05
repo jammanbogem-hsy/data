@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { WordCloud } from "./WordCloud";
+import { WordCloudLazy as WordCloud } from "./WordCloudLazy";
 
 interface NewsItem { title: string; description: string; pubDate: string; }
 

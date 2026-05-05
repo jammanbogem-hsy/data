@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { searchNaverNews, searchNaverBlog, searchNaverCafe, fetchDataLabTrend, fetchDataLabTrendMulti } from "@/lib/providers/naver";
 import { collectVideosAndComments } from "@/lib/providers/youtube";
 import { fetchWikipediaMulti } from "@/lib/providers/wikipedia";
+import { getKeywordInsight } from "@/lib/providers/naver-ad";
 import {
   investigateWithClaude,
   compareKeywordsWithClaude,
@@ -61,13 +62,13 @@ export async function POST(req: Request) {
 
   try {
     // 네이버 수집량 증가 + 카페 추가
-    const [newsRecent, newsSim, blog1, blog2, cafe1, yt, multiTrend, wikipediaTrend] = await Promise.all([
+    const [newsRecent, newsSim, blog1, blog2, cafe1, yt, multiTrend, wikipediaTrend, keywordInsight] = await Promise.all([
       searchNaverNews(primary, 50).catch(() => []),
       searchNaverNews(`${primary}`, 50, "sim").catch(() => []),
       searchNaverBlog(primary, 30).catch(() => []),
       searchNaverBlog(primary, 30).catch(() => []),
-      searchNaverCafe(primary, 30, "sim").catch(() => []), // 커뮤니티 여론
-      collectVideosAndComments(primary, 6, 15).catch(() => ({ videos: [], comments: [] })),
+      searchNaverCafe(primary, 40, "sim").catch(() => []), // 커뮤니티 여론
+      collectVideosAndComments(primary, 8, 20).catch(() => ({ videos: [], comments: [] })),
       kwList.length > 1
         ? fetchDataLabTrendMulti(kwList, startD, endD, unit).catch(() => [])
         : fetchDataLabTrend(primary, startD, endD, unit, { gender: gender ?? "", ages: ages ?? [], device: device ?? "" })
@@ -75,6 +76,8 @@ export async function POST(req: Request) {
             .catch(() => []),
       // Wikipedia 한국어 pageviews (2015+, 역사 데이터 보강)
       fetchWikipediaMulti(kwList, startD, endD, "ko").catch(() => []),
+      // 네이버 검색광고 API — 실제 월간 검색량 + 연관 키워드
+      getKeywordInsight(primary, 20).catch(() => null),
     ]);
 
     // 뉴스·블로그·카페 중복 제거 (link 기준)
@@ -183,10 +186,11 @@ export async function POST(req: Request) {
       insight,
       compareInsight,
       verificationTrace,
+      keywordInsight: keywordInsight ?? null,
       evidence: {
         news: allNews.slice(0, 100),
         videos: yt.videos,
-        comments: yt.comments.slice(0, 30),
+        comments: yt.comments.slice(0, 60),
         trend: primarySeries,
         multiTrend,
         wikipediaTrend,

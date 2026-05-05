@@ -31,14 +31,15 @@ export function RefreshButton() {
   return (
     <div className="flex items-center gap-3">
       {msg && (
-        <span className="text-xs text-slate-500 dark:text-slate-400">{msg}</span>
+        <span className="m3-body-sm">{msg}</span>
       )}
       <button
         onClick={refresh}
         disabled={busy || isPending}
-        className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+        className="m3-btn-outlined flex items-center gap-1.5 disabled:opacity-50"
       >
-        {busy ? "실행 중…" : "🔄 지금 갱신"}
+        <span className="m3-icon-sm" style={{ fontSize: 16 }}>{busy ? "hourglass_top" : "refresh"}</span>
+        {busy ? "실행 중..." : "지금 갱신"}
       </button>
     </div>
   );

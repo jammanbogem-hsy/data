@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import type { TrendCycle, CycleAnalysis } from "@/lib/trend-cycle";
-import { WordCloud } from "./WordCloud";
+import { WordCloudLazy as WordCloud } from "./WordCloudLazy";
+import { stripSuffix, STOPWORDS } from "@/lib/comment-analyze";
 
 interface NewsItem {
   title: string;
@@ -99,9 +100,12 @@ function CycleMiniCard({ cycle, index, news, keyword }: { cycle: TrendCycle; ind
       const hasNeg = NEG.some((w) => text.includes(w));
       if (hasPos && !hasNeg) pos++; else if (hasNeg) neg++; else neu++;
 
-      const tokens = text.match(/[가-힣]{2,6}/g) ?? [];
-      for (const t of tokens) {
-        if (t === keyword || t.length < 2) continue;
+      const tokens = text.match(/[가-힣]{2,10}/g) ?? [];
+      for (const raw of tokens) {
+        const t = stripSuffix(raw);
+        if (t.length < 2) continue;
+        if (t === keyword) continue;
+        if (STOPWORDS.has(t) || STOPWORDS.has(raw)) continue;
         wordCounts.set(t, (wordCounts.get(t) ?? 0) + 1);
       }
     }

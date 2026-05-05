@@ -104,19 +104,19 @@ export function GraphView({
   }, [elements, byKw]);
 
   return (
-    <div className="relative rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <div className="relative rounded-2xl" style={{ border: "1px solid var(--md-outline-variant)", background: "var(--md-surface-container)" }}>
       <div ref={ref} className="h-[70vh] w-full" />
       {selected && (
-        <aside className="absolute right-4 top-4 w-64 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
-          <h3 className="text-base font-semibold">#{selected.keyword}</h3>
-          <dl className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-400">
+        <aside className="absolute right-4 top-4 w-64 rounded-xl p-4 backdrop-blur" style={{ background: "color-mix(in srgb, var(--md-surface-container) 95%, transparent)", border: "1px solid var(--md-outline-variant)", boxShadow: "var(--md-elevation-2)" }}>
+          <h3 className="text-base font-semibold" style={{ color: "var(--md-on-surface)" }}>#{selected.keyword}</h3>
+          <dl className="mt-2 space-y-1 m3-body-sm">
             <div className="flex justify-between">
               <dt>언급</dt>
               <dd className="tabular-nums">{selected.count}</dd>
             </div>
             <div className="flex justify-between">
               <dt>급등</dt>
-              <dd className="tabular-nums">×{selected.surgeScore.toFixed(2)}</dd>
+              <dd className="tabular-nums">x{selected.surgeScore.toFixed(2)}</dd>
             </div>
             <div className="flex justify-between">
               <dt>감정</dt>
@@ -132,18 +132,18 @@ export function GraphView({
 
 function Legend() {
   return (
-    <div className="absolute bottom-4 left-4 rounded-lg border border-slate-200 bg-white/90 p-3 text-xs shadow dark:border-slate-700 dark:bg-slate-900/90">
-      <div className="font-medium text-slate-700 dark:text-slate-200">범례</div>
+    <div className="absolute bottom-4 left-4 rounded-xl p-3 text-xs" style={{ background: "color-mix(in srgb, var(--md-surface-container) 92%, transparent)", border: "1px solid var(--md-outline-variant)", boxShadow: "var(--md-elevation-1)" }}>
+      <div className="font-medium" style={{ color: "var(--md-on-surface)" }}>범례</div>
       <div className="mt-1.5 flex items-center gap-1.5">
-        <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
-        <span className="text-slate-500">긍정</span>
-        <span className="ml-3 inline-block h-2 w-2 rounded-full bg-slate-400" />
-        <span className="text-slate-500">중립</span>
-        <span className="ml-3 inline-block h-2 w-2 rounded-full bg-rose-400" />
-        <span className="text-slate-500">부정</span>
+        <span className="inline-block h-2 w-2 rounded-full" style={{ background: "var(--md-primary)" }} />
+        <span style={{ color: "var(--md-on-surface-variant)" }}>긍정</span>
+        <span className="ml-3 inline-block h-2 w-2 rounded-full" style={{ background: "var(--md-outline)" }} />
+        <span style={{ color: "var(--md-on-surface-variant)" }}>중립</span>
+        <span className="ml-3 inline-block h-2 w-2 rounded-full" style={{ background: "var(--md-error)" }} />
+        <span style={{ color: "var(--md-on-surface-variant)" }}>부정</span>
       </div>
-      <div className="mt-1 text-slate-500">
-        오렌지 테두리 = 급등 ×2 이상 · 크기 = 언급량
+      <div className="mt-1" style={{ color: "var(--md-on-surface-variant)" }}>
+        오렌지 테두리 = 급등 x2 이상 · 크기 = 언급량
       </div>
     </div>
   );

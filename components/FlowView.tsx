@@ -64,14 +64,14 @@ export function FlowView({ series }: { series: Series }) {
 
   if (keywords.length === 0 || dates.length < 2) {
     return (
-      <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+      <p className="rounded-2xl border border-dashed p-8 text-center text-sm" style={{ borderColor: "var(--md-outline)", color: "var(--md-on-surface-variant)" }}>
         시계열 데이터가 부족합니다. 며칠 더 수집하면 표시됩니다.
       </p>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+    <div className="m3-card">
       <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="키워드 트렌드">
         <Group left={margin.left} top={margin.top}>
           <AreaStack
@@ -120,7 +120,7 @@ export function FlowView({ series }: { series: Series }) {
         {keywords.map((kw) => (
           <span
             key={kw}
-            className="flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs dark:bg-slate-800"
+            className="m3-chip text-xs"
           >
             <span className="inline-block h-2 w-2 rounded-full" style={{ background: color(kw) }} />
             {kw}

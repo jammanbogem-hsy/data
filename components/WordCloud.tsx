@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import cloud from "d3-cloud";
 
 export interface WordCloudItem {
@@ -58,6 +58,17 @@ export function WordCloud({
     ? comments.filter((c) => c.text.includes(hover.word)).slice(0, 5)
     : [];
 
+  // 메모이제이션: 단어 크기 사전 계산
+  const wordInputs = useMemo(() => {
+    if (words.length === 0) return [];
+    const maxVal = Math.max(...words.map((w) => w.value), 1);
+    return words.map((w) => ({
+      text: w.text,
+      size: Math.max(14, Math.min(56, 14 + (w.value / maxVal) * 42)),
+      sentiment: w.sentiment,
+    }));
+  }, [words]);
+
   // 반응형 너비
   useEffect(() => {
     if (!containerRef.current) return;
@@ -69,21 +80,13 @@ export function WordCloud({
     return () => ro.disconnect();
   }, []);
 
-  // d3-cloud 레이아웃 계산
+  // d3-cloud 레이아웃 계산 (memoized inputs)
   useEffect(() => {
-    if (words.length === 0) return;
-
-    const maxVal = Math.max(...words.map((w) => w.value), 1);
+    if (wordInputs.length === 0) return;
 
     const layout = cloud<{ text: string; size: number; sentiment: "positive" | "negative" | "neutral" }>()
       .size([actualWidth, height])
-      .words(
-        words.map((w) => ({
-          text: w.text,
-          size: Math.max(14, Math.min(56, 14 + (w.value / maxVal) * 42)),
-          sentiment: w.sentiment,
-        }))
-      )
+      .words(wordInputs.map((w) => ({ ...w })))
       .padding(5)
       .rotate(() => {
         const r = Math.random();
@@ -106,7 +109,7 @@ export function WordCloud({
       });
 
     layout.start();
-  }, [words, actualWidth, height]);
+  }, [wordInputs, actualWidth, height]);
 
   if (words.length === 0) {
     return (
@@ -116,13 +119,20 @@ export function WordCloud({
     );
   }
 
+  // 모바일에서 높이 축소 (320 -> 200)
+  const responsiveHeight = typeof window !== "undefined" && window.innerWidth < 768
+    ? Math.min(height, 200)
+    : height;
+
   return (
     <div ref={containerRef} className="relative w-full">
       <svg
         width={actualWidth}
-        height={height}
+        height={responsiveHeight}
         viewBox={`0 0 ${actualWidth} ${height}`}
         className="mx-auto"
+        role="img"
+        aria-label="워드클라우드: 키워드 빈도 및 감정 시각화"
       >
         <g transform={`translate(${actualWidth / 2},${height / 2})`}>
           {layoutWords.map((w, i) => (

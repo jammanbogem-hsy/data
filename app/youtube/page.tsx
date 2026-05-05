@@ -1,6 +1,13 @@
 import { YouTubeAnalyzer } from "@/components/YouTubeAnalyzer";
 
-export const metadata = { title: "YouTube 영상 분석 · 데이터 마이닝" };
+export const metadata = {
+  title: "YouTube 영상 분석 · 데이터 마이닝",
+  description: "유튜브 영상의 댓글을 수집해 감정 분석과 핵심 키워드 워드클라우드를 AI로 생성합니다.",
+  openGraph: {
+    title: "YouTube 영상 분석 · 데이터 마이닝",
+    description: "유튜브 영상의 댓글을 수집해 감정 분석과 핵심 키워드 워드클라우드를 AI로 생성합니다.",
+  },
+};
 
 export default function YouTubePage() {
   return (

@@ -96,8 +96,8 @@ export function DateRangeControl({ value, onChange, disabled, advanced, onAdvanc
 
   return (
     <div className="space-y-2">
-      {/* 기간 선택 */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* 기간 선택 — 모바일에서 줄바꿈 허용 */}
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="분석 기간 선택">
         <span className="m3-body-sm font-medium" style={{ color: "var(--md-on-surface-variant)" }}>기간</span>
         {PRESETS.map((p) => (
           <button key={p.key} type="button" disabled={disabled} onClick={() => selectPreset(p.key)}
@@ -151,9 +151,9 @@ export function DateRangeControl({ value, onChange, disabled, advanced, onAdvanc
         )}
       </div>
 
-      {/* 고급 옵션 패널 */}
+      {/* 고급 옵션 패널 — 모바일에서 풀폭 */}
       {showAdvanced && onAdvancedChange && (
-        <div className="m3-card-outlined flex flex-wrap gap-4" style={{ borderRadius: "var(--md-radius-md)" }}>
+        <div className="m3-card-outlined flex flex-wrap gap-4 max-md:w-full max-md:flex-col" style={{ borderRadius: "var(--md-radius-md)" }}>
           {/* 성별 */}
           <div className="space-y-1">
             <div className="m3-label-sm">성별</div>

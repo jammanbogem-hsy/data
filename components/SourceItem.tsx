@@ -1,18 +1,18 @@
 const SOURCE_ICON: Record<string, string> = {
-  "naver-news": "📰",
-  "youtube-video": "🎬",
-  "youtube-comment": "💬",
+  "naver-news": "newspaper",
+  "youtube-video": "smart_display",
+  "youtube-comment": "chat_bubble",
 };
 
-const SOURCE_COLOR: Record<string, string> = {
-  "naver-news": "border-l-green-400",
-  "youtube-video": "border-l-red-400",
-  "youtube-comment": "border-l-red-300",
+const SOURCE_BORDER: Record<string, string> = {
+  "naver-news": "var(--md-primary)",
+  "youtube-video": "var(--md-error)",
+  "youtube-comment": "#F57F17",
 };
 
 export function SourceItem({ item }: { item: any }) {
-  const icon = SOURCE_ICON[item.source] ?? "📄";
-  const borderColor = SOURCE_COLOR[item.source] ?? "border-l-slate-300";
+  const icon = SOURCE_ICON[item.source] ?? "article";
+  const borderLeft = SOURCE_BORDER[item.source] ?? "var(--md-outline)";
   const title = item.title || item.textPreview?.slice(0, 60) || "(제목 없음)";
   const preview = item.textPreview || item.text?.slice(0, 200) || "";
   const url = item.url || "";
@@ -27,10 +27,11 @@ export function SourceItem({ item }: { item: any }) {
 
   return (
     <div
-      className={`rounded-lg border border-slate-200 border-l-4 ${borderColor} bg-white p-4 dark:border-slate-800 dark:bg-slate-900`}
+      className="m3-card-outlined"
+      style={{ borderLeft: `4px solid ${borderLeft}` }}
     >
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 text-base">{icon}</span>
+        <span className="m3-icon mt-0.5" style={{ color: borderLeft }}>{icon}</span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {url ? (
@@ -38,12 +39,13 @@ export function SourceItem({ item }: { item: any }) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm font-semibold text-slate-900 hover:text-blue-600 hover:underline dark:text-slate-100 dark:hover:text-blue-400"
+                className="text-sm font-semibold hover:underline"
+                style={{ color: "var(--md-on-surface)" }}
               >
                 {title}
               </a>
             ) : (
-              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              <span className="text-sm font-semibold" style={{ color: "var(--md-on-surface)" }}>
                 {title}
               </span>
             )}
@@ -52,29 +54,30 @@ export function SourceItem({ item }: { item: any }) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 text-xs text-slate-400 hover:text-blue-500"
+                className="shrink-0 m3-icon-sm"
+                style={{ fontSize: 14, color: "var(--md-on-surface-variant)" }}
               >
-                ↗
+                open_in_new
               </a>
             )}
           </div>
-          <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+          <p className="mt-1 line-clamp-3 text-sm leading-relaxed" style={{ color: "var(--md-on-surface-variant)" }}>
             {preview}
           </p>
-          <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
+          <div className="mt-2 flex items-center gap-3 m3-body-sm">
             {date && <span>{date}</span>}
-            {item.likeCount > 0 && <span>👍 {item.likeCount}</span>}
+            {item.likeCount > 0 && (
+              <span className="flex items-center gap-0.5">
+                <span className="m3-icon-sm" style={{ fontSize: 12 }}>thumb_up</span> {item.likeCount}
+              </span>
+            )}
             {item.viewCount > 0 && (
-              <span>👀 {item.viewCount.toLocaleString()}</span>
+              <span className="flex items-center gap-0.5">
+                <span className="m3-icon-sm" style={{ fontSize: 12 }}>visibility</span> {item.viewCount.toLocaleString()}
+              </span>
             )}
             {item.kidSafeScore != null && (
-              <span
-                className={
-                  item.kidSafeScore >= 0.7
-                    ? "text-emerald-500"
-                    : "text-slate-400"
-                }
-              >
+              <span style={{ color: item.kidSafeScore >= 0.7 ? "var(--md-primary)" : "var(--md-on-surface-variant)" }}>
                 적합도 {Math.round(item.kidSafeScore * 100)}%
               </span>
             )}
