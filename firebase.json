@@ -1,0 +1,14 @@
+{
+  "hosting": {
+    "target": "datamining",
+    "source": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "frameworksBackend": {
+      "region": "asia-northeast3"
+    }
+  }
+}

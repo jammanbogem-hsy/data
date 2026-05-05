@@ -1,17 +1,188 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Material 3 Design Tokens — Teal + Ivory ─── */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+
+  /* Primary: 청록 (Teal) */
+  --md-primary: #00897B;
+  --md-primary-light: #4DB6AC;
+  --md-primary-dark: #00695C;
+  --md-on-primary: #FFFFFF;
+
+  /* Secondary */
+  --md-secondary: #546E7A;
+  --md-secondary-light: #78909C;
+
+  /* Surface: 연한 아이보리 */
+  --md-surface: #FAFAF5;
+  --md-surface-dim: #F0EFE9;
+  --md-surface-container: #FFFFFF;
+  --md-surface-container-low: #F5F5F0;
+  --md-surface-container-high: #EDEDEB;
+  --md-on-surface: #1C1B1F;
+  --md-on-surface-variant: #49454F;
+
+  /* Outline */
+  --md-outline: #CAC4D0;
+  --md-outline-variant: #E7E0EC;
+
+  /* Error */
+  --md-error: #B3261E;
+  --md-on-error: #FFFFFF;
+
+  /* Elevation */
+  --md-elevation-1: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --md-elevation-2: 0 2px 6px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  --md-elevation-3: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+
+  /* Shape */
+  --md-radius-sm: 8px;
+  --md-radius-md: 12px;
+  --md-radius-lg: 16px;
+  --md-radius-xl: 28px;
 }
 
-html,
-body {
+/* Dark mode */
+.dark, [data-theme="dark"] {
+  --md-primary: #4DB6AC;
+  --md-primary-light: #80CBC4;
+  --md-primary-dark: #00897B;
+  --md-on-primary: #003731;
+
+  --md-surface: #1C1B1F;
+  --md-surface-dim: #141316;
+  --md-surface-container: #211F26;
+  --md-surface-container-low: #1D1B20;
+  --md-surface-container-high: #2B2930;
+  --md-on-surface: #E6E1E5;
+  --md-on-surface-variant: #CAC4D0;
+
+  --md-outline: #49454F;
+  --md-outline-variant: #49454F;
+}
+
+html, body {
   height: 100%;
 }
 
 body {
-  font-feature-settings: "ss01", "ss02";
+  font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+  background-color: var(--md-surface);
+  color: var(--md-on-surface);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "ss02";
+}
+
+/* ─── Material 3 Utility Classes ─── */
+@layer components {
+  /* M3 Card — Surface container + elevation */
+  .m3-card {
+    @apply rounded-2xl border p-5;
+    background: var(--md-surface-container);
+    border-color: var(--md-outline-variant);
+    box-shadow: var(--md-elevation-1);
+  }
+  .m3-card-elevated {
+    @apply rounded-2xl p-5;
+    background: var(--md-surface-container);
+    box-shadow: var(--md-elevation-2);
+  }
+  .m3-card-outlined {
+    @apply rounded-2xl border p-5;
+    background: var(--md-surface-container);
+    border-color: var(--md-outline);
+  }
+
+  /* M3 Headline */
+  .m3-headline-sm {
+    @apply text-2xl font-semibold tracking-tight;
+    color: var(--md-on-surface);
+  }
+  .m3-title-md {
+    @apply text-base font-medium;
+    color: var(--md-on-surface);
+  }
+  .m3-title-sm {
+    @apply text-sm font-medium;
+    color: var(--md-on-surface);
+  }
+  .m3-body-md {
+    @apply text-sm leading-relaxed;
+    color: var(--md-on-surface-variant);
+  }
+  .m3-body-sm {
+    @apply text-xs;
+    color: var(--md-on-surface-variant);
+  }
+  .m3-label-sm {
+    @apply text-xs font-medium tracking-wide uppercase;
+    color: var(--md-on-surface-variant);
+  }
+
+  /* M3 Chip */
+  .m3-chip {
+    @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition;
+    background: var(--md-surface-container-high);
+    color: var(--md-on-surface-variant);
+  }
+  .m3-chip-primary {
+    @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium;
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+  }
+
+  /* M3 Button */
+  .m3-btn-filled {
+    @apply rounded-xl px-6 py-2.5 text-sm font-semibold shadow-sm transition;
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+  }
+  .m3-btn-filled:hover {
+    box-shadow: var(--md-elevation-2);
+    filter: brightness(1.05);
+  }
+  .m3-btn-outlined {
+    @apply rounded-xl border px-5 py-2 text-sm font-medium transition;
+    border-color: var(--md-outline);
+    color: var(--md-primary);
+  }
+  .m3-btn-tonal {
+    @apply rounded-xl px-5 py-2 text-sm font-medium transition;
+    background: var(--md-surface-container-high);
+    color: var(--md-on-surface-variant);
+  }
+
+  /* M3 Divider */
+  .m3-divider {
+    @apply my-4;
+    border-color: var(--md-outline-variant);
+  }
+
+  /* M3 Section heading */
+  .m3-section {
+    @apply space-y-4;
+  }
+  .m3-section-title {
+    @apply flex items-center gap-2 text-base font-semibold;
+    color: var(--md-on-surface);
+  }
+
+  /* Material Symbols icon helper */
+  .m3-icon {
+    font-family: 'Material Symbols Outlined';
+    font-size: 20px;
+    line-height: 1;
+    color: var(--md-primary);
+  }
+  .m3-icon-sm {
+    font-family: 'Material Symbols Outlined';
+    font-size: 18px;
+    line-height: 1;
+  }
 }

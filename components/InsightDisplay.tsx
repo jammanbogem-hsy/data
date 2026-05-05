@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   detectSpikes,
   detectNaturalPeak,
   detectCommonSpikes,
   detectLeadingIndicators,
-  type TrendPoint,
   type SpikeRange,
   type CommonSpikeCluster,
   type LeadingIndicator,
 } from "@/lib/spike";
-import { TrendChart } from "./TrendChart";
 import { HypothesisCard } from "./HypothesisCard";
 import { EventStudyCard } from "./EventStudyCard";
 import { SummaryCards } from "./SummaryCards";
@@ -19,6 +17,8 @@ import { YouTubeStatsCard } from "./YouTubeStatsCard";
 import { SentimentOverviewCard } from "./SentimentOverviewCard";
 import { RelatedKeywordsCard } from "./RelatedKeywordsCard";
 import { runEventStudy, type EventImpact } from "@/lib/event-study";
+import { detectTrendCycles, type CycleAnalysis } from "@/lib/trend-cycle";
+import { TrendCycleCard } from "./TrendCycleCard";
 import { correctTimeSeries, computeSummaryMetrics } from "@/lib/correction";
 import { SpikeAnalysisModal, type SpikeInsight, type Refetched, type PeakEvidence, type SentimentTimeline } from "./SpikeAnalysisModal";
 import { ComparisonCard, type ComparisonInsight } from "./ComparisonCard";
@@ -30,47 +30,8 @@ import {
   type SimilarityMatch,
 } from "@/lib/past-investigations";
 import { detectSeasonal } from "@/lib/korean-seasonal";
-
-function TrendChartResponsive(props: {
-  series: TrendPoint[];
-  spikes: SpikeRange[];
-  selectedSpikeIdx: number;
-  onSelectSpike: (s: SpikeRange) => void;
-  raw?: boolean;
-  extraSeries?: Array<{ keyword: string; series: TrendPoint[]; color: string }>;
-  extraSpikes?: Array<{ keyword: string; color: string; spikes: SpikeRange[] }>;
-  primaryKeyword?: string;
-  onSelectExtraSpike?: (keyword: string, spike: SpikeRange) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(720);
-  useEffect(() => {
-    if (!ref.current) return;
-    const ro = new ResizeObserver((entries) => {
-      const cw = entries[0].contentRect.width;
-      if (cw > 0) setW(Math.floor(cw));
-    });
-    ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, []);
-  return (
-    <div ref={ref} className="w-full">
-      <TrendChart
-        series={props.series}
-        spikes={props.spikes}
-        width={w}
-        height={Math.max(200, Math.min(280, w * 0.35))}
-        selectedSpikeIdx={props.selectedSpikeIdx}
-        onSelectSpike={props.onSelectSpike}
-        raw={props.raw}
-        extraSeries={props.extraSeries}
-        extraSpikes={props.extraSpikes}
-        primaryKeyword={props.primaryKeyword}
-        onSelectExtraSpike={props.onSelectExtraSpike}
-      />
-    </div>
-  );
-}
+import { TrendSection } from "./TrendSection";
+import { InsightSummarySection } from "./InsightSummarySection";
 
 interface Hypothesis {
   title: string;
@@ -115,12 +76,6 @@ interface Props {
 }
 
 const COMPARE_PALETTE = ["#F59E0B", "#EC4899", "#8B5CF6", "#0EA5E9"]; // 주 키워드=초록, 비교=이 팔레트
-
-const TIME_UNIT_LABEL: Record<string, string> = {
-  date: "일간",
-  week: "주간",
-  month: "월간",
-};
 
 const CONFIDENCE_LABEL: Record<string, { text: string; color: string }> = {
   high: { text: "확신↑", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
@@ -282,6 +237,12 @@ export function InsightDisplay({ data }: Props) {
   }, [keyword, data.fetchedAt, detectedSpikes]);
 
   // 이벤트 스터디: 한국 시즌/공휴일이 검색량에 얼마나 영향을 줬나
+  // 유행 사이클 감지
+  const cycleAnalysis = useMemo<CycleAnalysis>(() => {
+    if (evidence.trend.length < 14) return { cycles: [], isRecurring: false, recurringIntervalDays: null, pattern: "one-time", patternDescription: "" };
+    return detectTrendCycles(evidence.trend);
+  }, [evidence.trend]);
+
   const eventImpacts = useMemo<EventImpact[]>(() => {
     if (evidence.trend.length < 20) return [];
     return runEventStudy(evidence.trend, undefined, 8);
@@ -412,234 +373,42 @@ export function InsightDisplay({ data }: Props) {
       <SummaryCards metrics={summaryMetrics} keyword={keyword} />
 
       {/* ─── 섹션 2: AI 인사이트 요약 ─── */}
-      <section className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 dark:border-blue-900 dark:from-blue-950 dark:to-slate-900">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-slate-500">키워드</span>
-            <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-semibold text-blue-700 dark:bg-blue-900 dark:text-blue-200">
-              {keyword}
-            </span>
-          </div>
-          <div className="flex items-center gap-3 text-xs text-slate-500">
-            <span title="네이버 뉴스 + 블로그 검색 API">📰 네이버 {evidence.news.length}</span>
-            <span title="YouTube Data API v3 검색 결과">🎬 YouTube {evidence.videos.length}</span>
-            <span title="각 영상 상위 댓글 수집">💬 댓글 {evidence.comments.length}</span>
-            <span title="네이버 데이터랩 검색어 트렌드">📊 트렌드 {evidence.trend.length}p</span>
-          </div>
-        </div>
-        <h2 className="mt-3 text-xl font-bold leading-relaxed text-slate-900 dark:text-slate-100">
-          {insight.summary}
-        </h2>
-        <p className="mt-3 rounded-lg bg-white/60 p-3 text-sm italic text-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
-          💭 <b>사람들의 마음</b>: {insight.mindset}
-        </p>
-
-        {trendStats && (
-          <div className="mt-4 grid grid-cols-3 gap-3 text-center text-sm">
-            <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
-              <div className="text-xs text-slate-500">최근 7일 평균</div>
-              <div className="mt-1 text-lg font-bold tabular-nums">
-                {trendStats.recentAvg.toFixed(1)}
-              </div>
-            </div>
-            <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
-              <div className="text-xs text-slate-500">직전 30일 평균</div>
-              <div className="mt-1 text-lg font-bold tabular-nums">
-                {trendStats.priorAvg.toFixed(1)}
-              </div>
-            </div>
-            <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
-              <div className="text-xs text-slate-500">급등 배수</div>
-              <div
-                className={`mt-1 text-lg font-bold tabular-nums ${
-                  trendStats.ratio >= 1.5
-                    ? "text-orange-500"
-                    : trendStats.ratio <= 0.7
-                      ? "text-rose-500"
-                      : "text-slate-700 dark:text-slate-200"
-                }`}
-              >
-                ×{trendStats.ratio.toFixed(2)}
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
+      <InsightSummarySection
+        keyword={keyword}
+        summary={insight.summary}
+        mindset={insight.mindset}
+        newsCount={evidence.news.length}
+        videosCount={evidence.videos.length}
+        commentsCount={evidence.comments.length}
+        trendLength={evidence.trend.length}
+        trendStats={trendStats}
+      />
 
       {/* 검색 트렌드 꺾은선 그래프 + 급등 구간 하이라이트 */}
-      {evidence.trend.length > 0 && (
-        <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <h3 className="text-base font-semibold">📈 검색 트렌드</h3>
-              <p className="mt-1 text-xs text-slate-500" title="네이버 데이터랩 검색어 트렌드 API (PC+모바일 통합)">
-                데이터 출처: <b>네이버 데이터랩</b> ·{" "}
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-slate-800">
-                  {data.range ? TIME_UNIT_LABEL[data.range.timeUnit] : "?"} {evidence.trend.length}p
-                </span>{" "}
-                · 기간 내 최대값을 100 으로 정규화
-              </p>
-              {data.range?.timeUnit !== "date" && (
-                <p className="mt-1 text-[10px] text-amber-600">
-                  ⚠ 현재 {TIME_UNIT_LABEL[data.range?.timeUnit ?? "month"]} 단위라 DataLab 공식 사이트(일간)와 모양이 다를 수 있습니다. 일간 보려면 기간을 3년 이하로 설정하세요.
-                </p>
-              )}
-            </div>
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-              <input
-                type="checkbox"
-                checked={rawChart}
-                onChange={(e) => setRawChart(e.target.checked)}
-                className="h-3.5 w-3.5"
-              />
-              DataLab 원본 스타일
-            </label>
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-              <input
-                type="checkbox"
-                checked={showCorrected}
-                onChange={(e) => setShowCorrected(e.target.checked)}
-                className="h-3.5 w-3.5"
-              />
-              📊 보정 지수 (요일 효과 제거)
-            </label>
-            {allSpikeTabs.length > 0 && (
-              <div className="flex max-w-full flex-wrap items-center gap-1.5">
-                <span className="text-xs text-slate-500">
-                  급등 선택 ({allSpikeTabs.length}):
-                </span>
-                {allSpikeTabs.slice(0, 14).map((t) => {
-                  const status = spikeResults[t.key]?.status;
-                  const statusDot =
-                    status === "done"
-                      ? "✓"
-                      : status === "error"
-                        ? "⚠"
-                        : status === "loading" || status === "pending"
-                          ? "…"
-                          : "○";
-                  return (
-                    <button
-                      key={t.key}
-                      onClick={() => setModalKey(t.key)}
-                      className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold transition hover:shadow-sm"
-                      style={{
-                        background: `${t.color}22`,
-                        color: t.color,
-                      }}
-                      title={`클릭하여 분석 보기 · ${t.keyword} · ${t.spike.startPeriod} ~ ${t.spike.endPeriod} (×${t.spike.multiplier.toFixed(1)})`}
-                    >
-                      <span
-                        className="inline-block h-1.5 w-1.5 rounded-full"
-                        style={{ background: t.color }}
-                      />
-                      <span className="font-semibold">{t.keyword}</span>
-                      <span className="opacity-80">{t.spike.peakPeriod.slice(5)}</span>
-                      <span className="tabular-nums">×{t.spike.multiplier.toFixed(1)}</span>
-                      <span
-                        className={`ml-0.5 text-[10px] ${status === "done" ? "text-emerald-500" : status === "error" ? "text-rose-500" : "text-slate-400"}`}
-                      >
-                        {statusDot}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          <TrendChartResponsive
-            series={evidence.trend}
-            spikes={spikes}
-            selectedSpikeIdx={selectedSpikeIdx}
-            onSelectSpike={(_sp) => {
-              // 주 키워드 점/음영 클릭 시 모달 열기
-              const idx = detectedSpikes.findIndex((s) => s.startPeriod === _sp.startPeriod);
-              if (idx >= 0) setModalKey(`${keyword}#${idx}`);
-            }}
-            onSelectExtraSpike={(kw, sp) => {
-              // 비교 키워드 점 클릭 시 모달 열기
-              const match = perKeywordSpikes.find((p) => p.keyword === kw);
-              if (!match) return;
-              const idx = match.spikes.findIndex((s) => s.startPeriod === sp.startPeriod);
-              if (idx >= 0) setModalKey(`${kw}#${idx}`);
-            }}
-            raw={rawChart}
-            primaryKeyword={keyword}
-            extraSeries={[
-              // 보정 지수 시리즈 (토글 ON 시)
-              ...(showCorrected
-                ? [{
-                    keyword: `📊 ${keyword} 보정`,
-                    series: correctedSeries.map((p) => ({ period: p.period, ratio: p.corrected })),
-                    color: "#A855F7",
-                    dashed: true,
-                  }]
-                : []),
-              // 비교 키워드 DataLab 시리즈
-              ...(evidence.multiTrend ?? [])
-                .filter((t) => t.keyword !== keyword)
-                .map((t, i) => ({
-                  keyword: t.keyword,
-                  series: t.series,
-                  color: COMPARE_PALETTE[i % COMPARE_PALETTE.length],
-                  dashed: false,
-                })),
-              // Wikipedia 조회수 (점선, 회색, 보조)
-              ...(evidence.wikipediaTrend ?? []).map((w) => ({
-                keyword: `📖 ${w.keyword}`,
-                series: w.series,
-                color: "#6B7280",
-                dashed: true,
-              })),
-            ]}
-            extraSpikes={perKeywordSpikes}
-          />
-          {/* 다중 키워드 + Wikipedia 범례 */}
-          {((evidence.multiTrend && evidence.multiTrend.length > 1) ||
-            (evidence.wikipediaTrend && evidence.wikipediaTrend.length > 0)) && (
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
-              <span className="text-slate-500">범례:</span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-0.5 w-5 bg-green-500" />
-                <b>{keyword}</b> (주·DataLab)
-              </span>
-              {(evidence.multiTrend ?? [])
-                .filter((t) => t.keyword !== keyword)
-                .map((t, i) => (
-                  <span key={t.keyword} className="flex items-center gap-1.5">
-                    <span
-                      className="inline-block h-0.5 w-5"
-                      style={{ background: COMPARE_PALETTE[i % COMPARE_PALETTE.length] }}
-                    />
-                    {t.keyword}
-                  </span>
-                ))}
-              {(evidence.wikipediaTrend ?? []).map((w) => (
-                <span key={`wiki-${w.keyword}`} className="flex items-center gap-1.5">
-                  <span
-                    className="inline-block h-0.5 w-5"
-                    style={{
-                      background:
-                        "repeating-linear-gradient(to right, #6B7280 0, #6B7280 4px, transparent 4px, transparent 7px)",
-                    }}
-                  />
-                  📖 wiki:{w.keyword}
-                </span>
-              ))}
-            </div>
-          )}
-          {isNaturalPeakOnly && (
-            <p className="mt-2 text-center text-xs text-blue-500">
-              📌 이동평균 돌파형 급등은 없지만, 전체에서 가장 높았던 <b>{naturalPeak!.peakPeriod}</b> 구간을 자동 분석합니다 (평균 대비 ×{naturalPeak!.multiplier.toFixed(1)})
-            </p>
-          )}
-          {spikes.length === 0 && (
-            <p className="mt-2 text-center text-xs text-slate-400">
-              이 기간에는 뚜렷한 피크가 감지되지 않았습니다.
-            </p>
-          )}
-        </section>
-      )}
+      <TrendSection
+        trend={evidence.trend}
+        multiTrend={evidence.multiTrend}
+        wikipediaTrend={evidence.wikipediaTrend}
+        spikes={spikes}
+        allSpikeTabs={allSpikeTabs}
+        selectedSpikeIdx={selectedSpikeIdx}
+        selectedTabKey={selectedTabKey}
+        colorMap={colorMap}
+        perKeywordSpikes={perKeywordSpikes}
+        correctedSeries={correctedSeries}
+        keyword={keyword}
+        range={data.range}
+        isNaturalPeakOnly={isNaturalPeakOnly}
+        naturalPeak={naturalPeak}
+        detectedSpikes={detectedSpikes}
+        spikeResultStatuses={spikeResults}
+        rawChart={rawChart}
+        showCorrected={showCorrected}
+        setRawChart={setRawChart}
+        setShowCorrected={setShowCorrected}
+        setModalKey={setModalKey}
+        setSelectedTabKey={setSelectedTabKey}
+      />
 
       {/* 👥 사람들의 반응 심층 분석 (VoC + 연관어 + 커뮤니티 통합) */}
       {spikes.length > 0 && (
@@ -657,6 +426,11 @@ export function InsightDisplay({ data }: Props) {
       {/* 🎯 이벤트 스터디 — 시즌·공휴일이 검색에 준 영향 */}
       {eventImpacts.length > 0 && (
         <EventStudyCard keyword={keyword} impacts={eventImpacts} />
+      )}
+
+      {/* 유행 사이클 감지 */}
+      {cycleAnalysis.cycles.length > 0 && (
+        <TrendCycleCard analysis={cycleAnalysis} news={evidence.news} keyword={keyword} />
       )}
 
       {/* 과거 유사 사건 — 제거됨 (sessionStorage 한계) */}

@@ -12,23 +12,40 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <header className="space-y-3">
-        <div className="flex items-baseline gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">왜 이 키워드가 뜨고 있을까?</h1>
-          <span className="text-xs text-slate-400">v2</span>
-        </div>
-        <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-          키워드를 넣으면 <b>네이버·YouTube·DataLab</b>을 자동 수집하고 Claude가
-          <b> 급등 원인 가설 + 근거 + 사람들의 마음</b>을 분석합니다.
-          여러 키워드를 쉼표로 넣으면 <b>비교 분석</b>까지 자동.
+        <h1 className="m3-headline-sm flex items-center gap-2">
+          <span className="m3-icon" style={{ fontSize: 28 }}>search_insights</span>
+          왜 이 키워드가 뜨고 있을까?
+        </h1>
+        <p className="m3-body-md max-w-2xl">
+          궁금한 키워드를 넣으면 <b style={{ color: "var(--md-primary)" }}>네이버와 YouTube</b>에서
+          자료를 모아 <b>왜 검색이 늘었는지</b> 데이터로 알려줍니다.
         </p>
-        <details className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-          <summary className="cursor-pointer font-medium">📋 어떤 데이터를 쓰나요?</summary>
-          <ul className="mt-2 space-y-1 pl-4">
-            <li>• <b>검색 트렌드</b>: 네이버 데이터랩 (PC+모바일, 0-100 정규화)</li>
-            <li>• <b>뉴스·블로그</b>: 네이버 검색 API (최대 100+ 건, 정확도+최신순)</li>
-            <li>• <b>영상·댓글</b>: YouTube Data API (피크 기간 publishedAfter/Before)</li>
-            <li>• <b>분석</b>: Claude Haiku 4.5 · 2-step 체인 (가설 → 검증)</li>
-            <li>• <b>시즌 감지</b>: 추석/설/어린이날/크리스마스 등 자동 인식</li>
+        <details className="m3-card-outlined" style={{ borderRadius: "var(--md-radius-md)" }}>
+          <summary className="cursor-pointer m3-title-sm flex items-center gap-2">
+            <span className="m3-icon-sm" style={{ color: "var(--md-primary)" }}>info</span>
+            어떤 데이터를 쓰나요?
+          </summary>
+          <ul className="mt-3 space-y-2 pl-1 m3-body-sm">
+            <li className="flex items-start gap-2">
+              <span className="m3-icon-sm" style={{ fontSize: 16, color: "var(--md-primary)" }}>trending_up</span>
+              <span><b>검색 트렌드</b> — 네이버 데이터랩에서 검색량 변화를 가져옵니다</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="m3-icon-sm" style={{ fontSize: 16, color: "var(--md-primary)" }}>newspaper</span>
+              <span><b>뉴스와 블로그</b> — 네이버에서 관련 기사와 글을 모읍니다</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="m3-icon-sm" style={{ fontSize: 16, color: "var(--md-primary)" }}>smart_display</span>
+              <span><b>YouTube 영상</b> — 관련 영상과 댓글 반응을 확인합니다</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="m3-icon-sm" style={{ fontSize: 16, color: "var(--md-primary)" }}>psychology</span>
+              <span><b>AI 분석</b> — 모은 자료를 AI가 읽고 원인을 찾아줍니다</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="m3-icon-sm" style={{ fontSize: 16, color: "var(--md-primary)" }}>calendar_month</span>
+              <span><b>시즌 감지</b> — 추석, 복날, 수능 등 특별한 날을 자동으로 인식합니다</span>
+            </li>
           </ul>
         </details>
       </header>

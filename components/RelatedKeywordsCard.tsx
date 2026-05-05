@@ -1,159 +1,135 @@
 "use client";
 
+import { useState } from "react";
 import type { RelatedKeyword } from "@/lib/providers/claude";
 
-const CATEGORY_ICON: Record<string, string> = {
-  인물: "👤",
-  제품: "🛒",
-  장소: "📍",
-  이벤트: "🎉",
-  감정: "💭",
-  브랜드: "🏷️",
-  기타: "·",
+const CAT_COLOR: Record<string, string> = {
+  인물: "#1565C0", 제품: "#F57F17", 장소: "#2E7D32", 이벤트: "#7B1FA2",
+  감정: "#C62828", 브랜드: "#E65100", 기타: "#546E7A",
 };
 
-const CATEGORY_COLOR: Record<string, string> = {
-  인물: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-800",
-  제품: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800",
-  장소: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800",
-  이벤트: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-200 dark:border-purple-800",
-  감정: "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-950 dark:text-pink-200 dark:border-pink-800",
-  브랜드: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-200 dark:border-orange-800",
-  기타: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
-};
+const STRENGTH_SCALE: Record<string, number> = { strong: 1.4, medium: 1.0, weak: 0.75 };
 
-const STRENGTH_SIZE: Record<string, string> = {
-  strong: "text-sm font-bold px-3 py-1.5",
-  medium: "text-xs font-semibold px-2.5 py-1",
-  weak: "text-[11px] px-2 py-0.5",
-};
-
-const SENTIMENT_DOT: Record<string, string> = {
-  positive: "bg-emerald-400",
-  negative: "bg-rose-400",
-  neutral: "bg-slate-400",
-};
-
-export function RelatedKeywordsCard({
-  keyword,
-  relatedKeywords,
-}: {
-  keyword: string;
-  relatedKeywords: RelatedKeyword[];
-}) {
+export function RelatedKeywordsCard({ keyword, relatedKeywords }: { keyword: string; relatedKeywords: RelatedKeyword[] }) {
+  const [view, setView] = useState<"bubble" | "table">("bubble");
   if (!relatedKeywords || relatedKeywords.length === 0) return null;
 
-  // 카테고리별 그룹화
   const byCategory = new Map<string, RelatedKeyword[]>();
-  for (const rk of relatedKeywords) {
-    const cat = rk.category || "기타";
-    const arr = byCategory.get(cat) ?? [];
-    arr.push(rk);
-    byCategory.set(cat, arr);
-  }
-
-  // 카테고리 정렬 (개수 큰 순)
-  const sortedCategories = Array.from(byCategory.entries())
-    .sort((a, b) => b[1].length - a[1].length);
-
-  // 요약 3개
-  const topCategory = sortedCategories[0]?.[0] ?? "—";
+  for (const rk of relatedKeywords) (byCategory.get(rk.category) ?? (byCategory.set(rk.category, []), byCategory.get(rk.category)!)).push(rk);
+  const sorted = Array.from(byCategory.entries()).sort((a, b) => b[1].length - a[1].length);
   const strongCount = relatedKeywords.filter((k) => k.strength === "strong").length;
-  const posCount = relatedKeywords.filter((k) => k.sentiment === "positive").length;
-  const negCount = relatedKeywords.filter((k) => k.sentiment === "negative").length;
 
   return (
-    <section className="space-y-4">
-      <h3 className="flex items-center gap-2 text-lg font-semibold">
-        <span className="text-xl">🔗</span>
-        연관어 분석
-      </h3>
+    <section className="m3-section">
+      <div className="flex items-center justify-between">
+        <h3 className="m3-section-title">
+          <span className="m3-icon" style={{ color: "var(--md-primary)" }}>hub</span>
+          연관어 분석
+        </h3>
+        {/* 뷰 토글 */}
+        <div className="flex rounded-m3-md border overflow-hidden" style={{ borderColor: "var(--md-outline)" }}>
+          <button onClick={() => setView("bubble")} className="px-3 py-1.5 text-xs font-medium transition" style={{ background: view === "bubble" ? "var(--md-primary)" : "var(--md-surface-container)", color: view === "bubble" ? "var(--md-on-primary)" : "var(--md-on-surface-variant)" }}>워드맵</button>
+          <button onClick={() => setView("table")} className="px-3 py-1.5 text-xs font-medium transition" style={{ background: view === "table" ? "var(--md-primary)" : "var(--md-surface-container)", color: view === "table" ? "var(--md-on-primary)" : "var(--md-on-surface-variant)" }}>테이블</button>
+        </div>
+      </div>
 
-      {/* 요약 카드 3개 */}
+      {/* 요약 카드 */}
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-2xl dark:bg-indigo-900">
-            {CATEGORY_ICON[topCategory] ?? "📊"}
+        <div className="m3-card flex items-center gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ background: "var(--md-primary)", color: "var(--md-on-primary)" }}>
+            <span className="m3-icon">category</span>
           </div>
           <div>
-            <div className="text-xs text-slate-500">가장 많이 언급된 카테고리</div>
-            <div className="text-lg font-bold text-indigo-700 dark:text-indigo-300">
-              {topCategory}
-            </div>
-            <div className="text-xs text-slate-400">{sortedCategories[0]?.[1]?.length ?? 0}개 연관어</div>
+            <div className="m3-label-sm">가장 많은 카테고리</div>
+            <div className="text-lg font-bold" style={{ color: CAT_COLOR[sorted[0]?.[0] ?? "기타"] }}>{sorted[0]?.[0] ?? "—"}</div>
+            <div className="m3-body-sm">{sorted[0]?.[1]?.length ?? 0}개 연관어</div>
           </div>
         </div>
-        <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-yellow-100 text-2xl dark:bg-yellow-900">
-            ⭐
+        <div className="m3-card flex items-center gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ background: "var(--md-primary-dark)", color: "var(--md-on-primary)" }}>
+            <span className="m3-icon">star</span>
           </div>
           <div>
-            <div className="text-xs text-slate-500">핵심 연관어 (strong)</div>
-            <div className="text-lg font-bold text-yellow-700 dark:text-yellow-300">
-              {strongCount}개
-            </div>
-            <div className="text-xs text-slate-400">
-              {relatedKeywords.filter((k) => k.strength === "strong").slice(0, 3).map((k) => k.keyword).join(", ")}
-            </div>
+            <div className="m3-label-sm">핵심 연관어</div>
+            <div className="text-sm font-bold" style={{ color: "var(--md-on-surface)" }}>{relatedKeywords.filter(k => k.strength === "strong").slice(0, 3).map(k => k.keyword).join(", ") || "—"}</div>
+            <div className="m3-body-sm">{strongCount}개 (강한 연관)</div>
           </div>
         </div>
-        <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-2xl dark:bg-emerald-900">
-            😊
+        <div className="m3-card flex items-center gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ background: "var(--md-primary-light)", color: "var(--md-on-primary)" }}>
+            <span className="m3-icon">donut_small</span>
           </div>
           <div>
-            <div className="text-xs text-slate-500">감정 분포</div>
-            <div className="text-sm font-bold text-slate-700 dark:text-slate-200">
-              긍정 {posCount} · 부정 {negCount} · 중립 {relatedKeywords.length - posCount - negCount}
-            </div>
+            <div className="m3-label-sm">카테고리 수</div>
+            <div className="text-lg font-bold" style={{ color: "var(--md-on-surface)" }}>{sorted.length}개</div>
+            <div className="m3-body-sm">총 {relatedKeywords.length}개 연관어</div>
           </div>
         </div>
       </div>
 
-      {/* 연관어 네트워크 (카테고리별 태그 클러스터) */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-        <div className="mb-3 flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            &ldquo;{keyword}&rdquo; 연관어 {relatedKeywords.length}개
-          </h4>
-          <div className="flex items-center gap-3 text-[10px] text-slate-400">
-            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> 긍정</span>
-            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> 중립</span>
-            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-400" /> 부정</span>
-            <span>| 크기 = 관계 강도</span>
+      {view === "bubble" ? (
+        /* 버블 워드맵 */
+        <div className="m3-card" style={{ minHeight: 280 }}>
+          <div className="flex flex-wrap items-center justify-center gap-2 py-4">
+            {/* 중앙 키워드 */}
+            <span className="rounded-full px-5 py-2.5 text-lg font-bold" style={{ background: "var(--md-primary)", color: "var(--md-on-primary)" }}>{keyword}</span>
           </div>
-        </div>
-
-        {/* 방사형 레이아웃 모방 — 카테고리별 행 */}
-        <div className="space-y-3">
-          {sortedCategories.map(([cat, keywords]) => (
-            <div key={cat} className="flex flex-wrap items-center gap-2">
-              <span className="w-14 shrink-0 text-right text-xs font-medium text-slate-500">
-                {CATEGORY_ICON[cat]} {cat}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {relatedKeywords.map((rk) => {
+              const scale = STRENGTH_SCALE[rk.strength] ?? 1;
+              const catColor = CAT_COLOR[rk.category] ?? CAT_COLOR["기타"];
+              const size = Math.max(12, Math.min(20, 13 * scale));
+              return (
+                <span key={rk.keyword} className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 transition hover:shadow-m3-1" style={{
+                  fontSize: `${size}px`,
+                  fontWeight: scale >= 1.2 ? 700 : 500,
+                  borderColor: catColor,
+                  color: catColor,
+                  background: `color-mix(in srgb, ${catColor} ${scale >= 1.2 ? 12 : 5}%, var(--md-surface-container))`,
+                }} title={`${rk.category} · ${rk.strength} · ${rk.context}`}>
+                  <span className="h-2 w-2 rounded-full" style={{ background: rk.sentiment === "positive" ? "var(--md-primary)" : rk.sentiment === "negative" ? "var(--md-error)" : "var(--md-outline)" }} />
+                  {rk.keyword}
+                </span>
+              );
+            })}
+          </div>
+          {/* 카테고리 범례 */}
+          <div className="mt-4 flex flex-wrap justify-center gap-3 m3-body-sm">
+            {sorted.map(([cat]) => (
+              <span key={cat} className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: CAT_COLOR[cat] }} />
+                {cat}
               </span>
-              <div className="flex flex-wrap gap-1.5">
-                {keywords
-                  .sort((a, b) => {
-                    const order = { strong: 0, medium: 1, weak: 2 };
-                    return (order[a.strength] ?? 1) - (order[b.strength] ?? 1);
-                  })
-                  .map((rk) => (
-                    <span
-                      key={rk.keyword}
-                      className={`inline-flex items-center gap-1 rounded-full border ${CATEGORY_COLOR[cat] ?? CATEGORY_COLOR["기타"]} ${STRENGTH_SIZE[rk.strength] ?? STRENGTH_SIZE.medium}`}
-                      title={rk.context}
-                    >
-                      <span
-                        className={`inline-block h-1.5 w-1.5 rounded-full ${SENTIMENT_DOT[rk.sentiment] ?? SENTIMENT_DOT.neutral}`}
-                      />
-                      {rk.keyword}
-                    </span>
-                  ))}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* 테이블 뷰 */
+        <div className="m3-card overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--md-outline-variant)" }}>
+                <th className="p-2.5 text-left m3-label-sm">연관어</th>
+                <th className="p-2.5 text-left m3-label-sm">카테고리</th>
+                <th className="p-2.5 text-center m3-label-sm">강도</th>
+                <th className="p-2.5 text-center m3-label-sm">감정</th>
+                <th className="p-2.5 text-left m3-label-sm">맥락</th>
+              </tr>
+            </thead>
+            <tbody>
+              {relatedKeywords.map((rk, i) => (
+                <tr key={i} style={{ borderBottom: "1px solid var(--md-outline-variant)" }}>
+                  <td className="p-2.5 font-medium" style={{ color: "var(--md-on-surface)" }}>{rk.keyword}</td>
+                  <td className="p-2.5"><span className="m3-chip text-[11px]" style={{ borderColor: CAT_COLOR[rk.category], color: CAT_COLOR[rk.category] }}>{rk.category}</span></td>
+                  <td className="p-2.5 text-center"><span className="rounded-m3-sm px-2 py-0.5 text-[11px] font-semibold" style={{ background: rk.strength === "strong" ? "var(--md-primary)" : rk.strength === "medium" ? "var(--md-primary-light)" : "var(--md-outline)", color: rk.strength === "weak" ? "var(--md-on-surface)" : "var(--md-on-primary)" }}>{rk.strength === "strong" ? "강" : rk.strength === "medium" ? "중" : "약"}</span></td>
+                  <td className="p-2.5 text-center"><span className="h-3 w-3 inline-block rounded-full" style={{ background: rk.sentiment === "positive" ? "var(--md-primary)" : rk.sentiment === "negative" ? "var(--md-error)" : "var(--md-outline)" }} /></td>
+                  <td className="p-2.5 m3-body-sm">{rk.context}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

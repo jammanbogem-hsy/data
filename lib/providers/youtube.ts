@@ -101,20 +101,47 @@ export async function fetchComments(
   videoId: string,
   maxResults = 20
 ): Promise<YouTubeComment[]> {
-  const url = `${BASE}/commentThreads?part=snippet&videoId=${videoId}&maxResults=${maxResults}&order=relevance&textFormat=plainText&key=${key()}`;
-  const r = await fetch(url);
-  if (!r.ok) return [];
-  const data = await r.json();
-  return (data.items || []).map((t: any) => {
-    const sn = t.snippet?.topLevelComment?.snippet;
-    return {
+  const all: YouTubeComment[] = [];
+  let pageToken: string | undefined;
+  const perPage = Math.min(maxResults, 100);
+  let remaining = maxResults;
+
+  while (remaining > 0) {
+    const params = new URLSearchParams({
+      part: "snippet",
       videoId,
-      text: sn?.textDisplay ?? "",
-      author: sn?.authorDisplayName ?? "",
-      likeCount: Number(sn?.likeCount ?? 0),
-      publishedAt: sn?.publishedAt ?? "",
-    };
-  });
+      maxResults: String(Math.min(perPage, remaining)),
+      order: "relevance",
+      textFormat: "plainText",
+      key: key(),
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+
+    const r = await fetch(`${BASE}/commentThreads?${params}`);
+    if (!r.ok) {
+      console.error(`[youtube-comments] HTTP ${r.status} for video ${videoId}`);
+      break;
+    }
+    const data = await r.json();
+    const items = data.items || [];
+
+    for (const t of items) {
+      const sn = t.snippet?.topLevelComment?.snippet;
+      all.push({
+        videoId,
+        text: sn?.textDisplay ?? "",
+        author: sn?.authorDisplayName ?? "",
+        likeCount: Number(sn?.likeCount ?? 0),
+        publishedAt: sn?.publishedAt ?? "",
+      });
+    }
+
+    remaining -= items.length;
+    pageToken = data.nextPageToken;
+    if (!pageToken || items.length === 0) break;
+  }
+
+  return all;
 }
 
 export async function collectVideosAndComments(

@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "jiandaddy-735c9"
+  },
+  "targets": {
+    "jiandaddy-735c9": {
+      "hosting": {
+        "datamining": [
+          "datamining-jian"
+        ]
+      }
+    }
+  }
+}

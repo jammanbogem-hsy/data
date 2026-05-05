@@ -93,14 +93,18 @@ export async function fetchDataLabTrend(
   keyword: string,
   startDate: string,
   endDate: string,
-  timeUnit: "date" | "week" | "month" = "date"
+  timeUnit: "date" | "week" | "month" = "date",
+  opts?: { gender?: string; ages?: string[]; device?: string }
 ): Promise<DataLabPoint[]> {
-  const body = {
+  const body: Record<string, any> = {
     startDate,
     endDate,
     timeUnit,
     keywordGroups: [{ groupName: keyword, keywords: [keyword] }],
   };
+  if (opts?.gender) body.gender = opts.gender;
+  if (opts?.ages && opts.ages.length > 0) body.ages = opts.ages;
+  if (opts?.device) body.device = opts.device;
   const r = await fetch(DATALAB_URL, {
     method: "POST",
     headers: headers(),

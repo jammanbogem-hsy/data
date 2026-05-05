@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SpikeRange } from "@/lib/spike";
 
 interface Hypothesis {
@@ -17,7 +17,6 @@ export interface SpikeInsight {
   prevDayEvents?: Array<{ event: string; evidence: string }>;
   sameDayEvents?: Array<{ event: string; evidence: string }>;
 }
-
 export interface Refetched {
   peakDay: string;
   weekday: string;
@@ -42,7 +41,6 @@ export interface Refetched {
     newestInWindowBlogs: string;
   };
 }
-
 export interface SentimentTimeline {
   buckets: Array<{
     label: string;
@@ -52,16 +50,9 @@ export interface SentimentTimeline {
     negative: number;
     neutral: number;
     dominantNote: string;
-    voiceQuotes?: Array<{
-      text: string;
-      source: "news" | "blog" | "comment";
-      sourceLabel: string;
-      sentiment: "positive" | "negative" | "neutral";
-    }>;
   }>;
   narrative: string;
 }
-
 export interface PeakEvidence {
   peakVideos: Array<{ videoId: string; title: string; channelTitle: string; viewCount: number; publishedAt: string }>;
   peakBlogs: Array<{ title: string; link: string; description: string; pubDate: string }>;
@@ -69,11 +60,22 @@ export interface PeakEvidence {
   peakComments: Array<{ text: string; likeCount: number }>;
 }
 
-const CONFIDENCE_LABEL: Record<string, { text: string; color: string }> = {
-  high: { text: "확신↑", color: "bg-emerald-100 text-emerald-700" },
-  medium: { text: "보통", color: "bg-blue-100 text-blue-700" },
-  low: { text: "추측", color: "bg-slate-100 text-slate-600" },
+const CONF = {
+  high: { text: "높음", bg: "var(--md-primary)", color: "var(--md-on-primary)" },
+  medium: { text: "보통", bg: "#1565C0", color: "white" },
+  low: { text: "낮음", bg: "var(--md-outline)", color: "var(--md-on-surface)" },
 };
+
+// 좌측 네비 항목
+const NAV_ITEMS = [
+  { id: "overview", icon: "summarize", label: "개요" },
+  { id: "events", icon: "event", label: "사건" },
+  { id: "keywords", icon: "tag", label: "키워드" },
+  { id: "hypotheses", icon: "lightbulb", label: "가설" },
+  { id: "videos", icon: "smart_display", label: "영상" },
+  { id: "news", icon: "newspaper", label: "뉴스" },
+  { id: "comments", icon: "chat_bubble", label: "댓글" },
+];
 
 interface Props {
   keyword: string;
@@ -88,362 +90,288 @@ interface Props {
 }
 
 export function SpikeAnalysisModal({
-  keyword,
-  color,
-  spike,
-  data,
-  refetched,
-  peakEvidence,
-  loading,
-  error,
-  onClose,
+  keyword, color, spike, data, refetched, peakEvidence, loading, error, onClose,
 }: Props) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [activeNav, setActiveNav] = useState("overview");
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [onClose]);
 
+  function scrollTo(id: string) {
+    setActiveNav(id);
+    const el = document.getElementById(`spike-${id}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8"
-      onClick={onClose}
-    >
-      <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6" onClick={onClose}>
+      <div className="fixed inset-0" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }} />
       <div
-        className="relative w-full max-w-4xl rounded-xl border-2 bg-white p-5 shadow-2xl dark:bg-slate-900"
-        style={{ borderColor: color }}
+        className="relative flex h-[90vh] w-full max-w-5xl overflow-hidden rounded-m3-lg"
+        style={{ background: "var(--md-surface-container)", boxShadow: "var(--md-elevation-3)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 닫기 버튼 */}
-        <button
-          onClick={onClose}
-          aria-label="close"
-          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+        {/* 좌측 카테고리 네비 */}
+        <nav
+          className="hidden w-48 shrink-0 flex-col gap-0.5 border-r py-4 sm:flex"
+          style={{ borderColor: "var(--md-outline-variant)", background: "var(--md-surface-container-low)" }}
         >
-          ✕
-        </button>
+          <div className="px-4 pb-3">
+            <div className="m3-label-sm" style={{ color: "var(--md-primary)" }}>급등 분석</div>
+            <div className="mt-1 text-sm font-semibold" style={{ color: "var(--md-on-surface)" }}>{keyword}</div>
+            <div className="m3-body-sm">{spike.peakPeriod}</div>
+          </div>
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => scrollTo(item.id)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm transition"
+              style={{
+                background: activeNav === item.id ? "var(--md-primary)" : "transparent",
+                color: activeNav === item.id ? "var(--md-on-primary)" : "var(--md-on-surface-variant)",
+                borderRadius: "0 var(--md-radius-xl) var(--md-radius-xl) 0",
+                marginRight: "8px",
+                fontWeight: activeNav === item.id ? 600 : 400,
+              }}
+            >
+              <span className="m3-icon-sm">{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </nav>
 
-        {/* 헤더 */}
-        <div className="mb-3 flex flex-wrap items-center gap-2 pr-10">
-          <span
-            className="rounded-full px-3 py-1 text-xs font-bold text-white shadow-sm"
-            style={{ background: color }}
+        {/* 우측 콘텐츠 */}
+        <div ref={contentRef} className="flex-1 overflow-y-auto">
+          {/* 닫기 */}
+          <button
+            onClick={onClose}
+            aria-label="close"
+            className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full transition"
+            style={{ background: "var(--md-surface-container-high)", color: "var(--md-on-surface-variant)" }}
           >
-            🔥 급등 구간 분석
-          </span>
-          <span className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-700 dark:text-slate-300">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: color }}
-            />
-            <b className="text-sm" style={{ color }}>
-              {keyword}
-            </b>
-            · {spike.startPeriod} ~ {spike.endPeriod}
-          </span>
-          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700 dark:bg-orange-900 dark:text-orange-200">
-            평소 ×{spike.multiplier.toFixed(1)} · 피크 {spike.peakRatio.toFixed(1)}
-          </span>
-        </div>
+            <span className="m3-icon-sm">close</span>
+          </button>
 
-        {loading && (
-          <div className="animate-pulse space-y-1 py-6 text-sm text-orange-600">
-            <div>🔎 피크 기간 YouTube + 네이버 블로그/뉴스 기간 쿼리…</div>
-            <div className="text-xs">Claude가 피크 시점 댓글·영상·기사로 가설을 좁히고 있습니다.</div>
-          </div>
-        )}
-
-        {refetched && !loading && (
-          <div className="mb-3 space-y-1.5 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-            <div>
-              🔄 <b>{refetched.peakDay}</b> ({refetched.weekday}요일){" "}
-              {refetched.seasonal.length > 0 && (
-                <span className="rounded bg-orange-100 px-1.5 py-0.5 font-semibold text-orange-700 dark:bg-orange-950 dark:text-orange-300">
-                  🏮 시즌: {refetched.seasonal.join(", ")}
-                </span>
-              )}
+          {/* 헤더 */}
+          <div className="border-b px-6 pb-4 pt-5" style={{ borderColor: "var(--md-outline-variant)" }}>
+            <div className="flex flex-wrap items-center gap-2 pr-10">
+              <span className="m3-chip-primary" style={{ background: color }}>
+                <span className="m3-icon-sm" style={{ fontSize: 16 }}>trending_up</span>
+                급등 구간
+              </span>
+              <span className="m3-body-sm font-mono">
+                {spike.startPeriod} ~ {spike.endPeriod}
+              </span>
+              <span className="m3-chip" style={{ fontWeight: 600 }}>
+                평소 x{spike.multiplier.toFixed(1)} · 피크 {spike.peakRatio.toFixed(1)}
+              </span>
             </div>
-            <div>
-              📊 수집{" "}
-              <b className="text-green-700 dark:text-green-400">네이버 {refetched.ratio.naver}건</b>
-              {" ("}뉴스 {refetched.newsWindowCount}+{refetched.newsContextCount}, 블로그 {refetched.blogsWindowCount}{") "}
-              · <b className="text-red-700 dark:text-red-400">YouTube {refetched.ratio.youtube}건</b>
-              {" ("}영상 {refetched.videosCount}, 댓글 {refetched.commentsCount}{")"}
-            </div>
-            {refetched.queries.length > 1 && (
-              <div className="flex flex-wrap items-center gap-1">
-                <span className="text-slate-500">쿼리 {refetched.queries.length}개:</span>
-                {refetched.queries.map((q, i) => (
-                  <span
-                    key={i}
-                    className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600 dark:bg-slate-700 dark:text-slate-400"
-                  >
-                    {q}
+            {refetched && !loading && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 m3-body-sm">
+                <span>{refetched.peakDay} ({refetched.weekday}요일)</span>
+                {refetched.seasonal.length > 0 && (
+                  <span className="m3-chip" style={{ background: "var(--md-primary)", color: "var(--md-on-primary)", fontSize: 11 }}>
+                    시즌: {refetched.seasonal.join(", ")}
                   </span>
-                ))}
+                )}
+                <span>네이버 {refetched.ratio.naver}건 · YouTube {refetched.ratio.youtube}건</span>
               </div>
             )}
-            {refetched.debug && (
-              <details className="text-[10px] text-slate-500" open={refetched.newsWindowCount === 0 && refetched.blogsWindowCount === 0}>
-                <summary className="cursor-pointer">🔍 네이버 수집 디버그</summary>
-                <div className="mt-1 space-y-0.5 rounded bg-slate-100 px-2 py-1.5 dark:bg-slate-700/60">
-                  <div>
-                    raw 뉴스 <b>{refetched.newsTotal}건</b> · raw 블로그 <b>{refetched.blogsTotal}건</b> (필터 전)
-                  </div>
-                  <div>
-                    뉴스 필터 창 ±
-                    {refetched.debug.newsBufferDays === -1
-                      ? `∞ (폴백: 상위 ${refetched.newsWindowCount}건)`
-                      : `${refetched.debug.newsBufferDays}일`}
-                    {refetched.debug.firstNewsDate && ` · 최신 raw 뉴스 ${refetched.debug.firstNewsDate}`}
-                    {refetched.debug.newestInWindowNews && ` · 창 내 최신 ${refetched.debug.newestInWindowNews}`}
-                  </div>
-                  <div>
-                    블로그 필터 창 ±
-                    {refetched.debug.blogsBufferDays === -1
-                      ? `∞ (폴백: 상위 ${refetched.blogsWindowCount}건)`
-                      : `${refetched.debug.blogsBufferDays}일`}
-                    {refetched.debug.firstBlogDate && ` · 최신 raw 블로그 ${refetched.debug.firstBlogDate}`}
-                    {refetched.debug.newestInWindowBlogs && ` · 창 내 최신 ${refetched.debug.newestInWindowBlogs}`}
-                  </div>
-                  {(refetched.debug.newsFallback || refetched.debug.blogsFallback) && (
-                    <div className="mt-1 text-rose-500">
-                      ⚠ 네이버 API가 {refetched.peakDay} 근처 글을 충분히 반환하지 않아 폴백했습니다 (오래된 날짜 제약).
-                    </div>
-                  )}
-                </div>
-              </details>
-            )}
           </div>
-        )}
 
-        {error && (
-          <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-700">
-            분석 실패: {error}
-          </div>
-        )}
-
-        {data && (
-          <div className="space-y-4">
-            {/* 종합 요약 */}
-            <div className="rounded-lg bg-orange-50 p-3 text-sm leading-relaxed text-slate-800 dark:bg-orange-950 dark:text-slate-200">
-              <span className="mr-1 font-semibold text-orange-700 dark:text-orange-300">왜 떴나?</span>
-              {data.summary}
+          {loading && (
+            <div className="animate-pulse space-y-2 p-6">
+              <div className="flex items-center gap-2 text-sm" style={{ color: "var(--md-primary)" }}>
+                <span className="m3-icon-sm">hourglass_top</span>
+                자료를 모아 분석하고 있어요...
+              </div>
+              <p className="m3-body-sm">네이버 뉴스, YouTube 영상을 읽고 원인을 찾는 중입니다.</p>
             </div>
+          )}
 
-            {/* 전날 / 당일 사건 (있을 때만) */}
-            {((data.prevDayEvents?.length ?? 0) > 0 || (data.sameDayEvents?.length ?? 0) > 0) && (
-              <div className="grid gap-2 md:grid-cols-2">
-                {(data.prevDayEvents?.length ?? 0) > 0 && (
-                  <div className="rounded-lg border border-orange-200 bg-white p-3 dark:border-orange-800 dark:bg-slate-900">
-                    <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-300">
-                      전날 사건 (D-1)
-                    </h4>
-                    <ul className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
-                      {data.prevDayEvents!.map((e, i) => (
-                        <li key={i} className="flex gap-2">
-                          <span className="text-orange-400">•</span>
-                          <span>
-                            {e.event}{" "}
-                            <span className="font-mono text-[10px] text-slate-400">{e.evidence}</span>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {(data.sameDayEvents?.length ?? 0) > 0 && (
-                  <div className="rounded-lg border border-orange-200 bg-white p-3 dark:border-orange-800 dark:bg-slate-900">
-                    <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-300">
-                      당일 사건 (D)
-                    </h4>
-                    <ul className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
-                      {data.sameDayEvents!.map((e, i) => (
-                        <li key={i} className="flex gap-2">
-                          <span className="text-orange-400">•</span>
-                          <span>
-                            {e.event}{" "}
-                            <span className="font-mono text-[10px] text-slate-400">{e.evidence}</span>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
+          {error && (
+            <div className="m-6 rounded-m3-md border p-4 text-sm" style={{ borderColor: "var(--md-error)", color: "var(--md-error)" }}>
+              <span className="m3-icon-sm mr-1">error</span>{error}
+            </div>
+          )}
 
-            {/* 핵심 키워드 */}
-            {data.topKeywords?.length > 0 && (
-              <div>
-                <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-300">
-                  급등 구간 키워드
-                </h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {data.topKeywords.map((k, i) => (
-                    <span
-                      key={i}
-                      className="rounded-full bg-orange-200 px-2.5 py-0.5 text-xs font-semibold text-orange-900 dark:bg-orange-900 dark:text-orange-200"
-                    >
-                      #{k}
-                    </span>
-                  ))}
+          {data && (
+            <div className="space-y-6 p-6">
+              {/* AI 오버뷰 */}
+              <section id="spike-overview">
+                <h3 className="m3-section-title mb-3">
+                  <span className="m3-icon" style={{ color: "var(--md-primary)" }}>auto_awesome</span>
+                  AI 오버뷰
+                </h3>
+                <div
+                  className="rounded-m3-lg p-5"
+                  style={{
+                    background: "linear-gradient(135deg, color-mix(in srgb, var(--md-primary) 5%, var(--md-surface-container)), var(--md-surface-container))",
+                    borderLeft: "3px solid var(--md-primary)",
+                  }}
+                >
+                  <div className="whitespace-pre-line text-sm leading-relaxed" style={{ color: "var(--md-on-surface)" }}>
+                    {data.summary}
+                  </div>
                 </div>
-              </div>
-            )}
+              </section>
 
-            {/* 가설 카드 */}
-            {data.hypotheses?.length > 0 && (
-              <div>
-                <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-300">
-                  급등 가설
-                </h4>
-                <div className="grid gap-2 md:grid-cols-3">
-                  {data.hypotheses.map((h, i) => (
-                    <article
-                      key={i}
-                      className="flex flex-col rounded-lg border border-orange-200 bg-white p-3 dark:border-orange-800 dark:bg-slate-900"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-xs font-bold text-orange-500">#{i + 1}</span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${CONFIDENCE_LABEL[h.confidence]?.color ?? ""}`}
-                        >
-                          {CONFIDENCE_LABEL[h.confidence]?.text ?? h.confidence}
-                        </span>
-                      </div>
-                      <h5 className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
-                        {h.title}
-                      </h5>
-                      <p className="mt-1.5 flex-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                        {h.reasoning}
-                      </p>
-                      {h.evidence?.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {h.evidence.slice(0, 4).map((ev, j) => (
-                            <span
-                              key={j}
-                              className="rounded bg-orange-50 px-1.5 py-0.5 font-mono text-[10px] text-orange-700 dark:bg-orange-950 dark:text-orange-300"
-                            >
-                              {ev.slice(0, 50)}
-                            </span>
+              {/* 사건 */}
+              {((data.prevDayEvents?.length ?? 0) > 0 || (data.sameDayEvents?.length ?? 0) > 0) && (
+                <section id="spike-events">
+                  <h3 className="m3-section-title mb-3">
+                    <span className="m3-icon" style={{ color: "var(--md-primary)" }}>event</span>
+                    전날·당일 사건
+                  </h3>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {(data.prevDayEvents?.length ?? 0) > 0 && (
+                      <div className="m3-card-outlined">
+                        <h4 className="m3-label-sm mb-2">전날 (D-1)</h4>
+                        <ul className="space-y-1.5 m3-body-sm">
+                          {data.prevDayEvents!.map((e, i) => (
+                            <li key={i}>{e.event} <span className="m3-body-sm opacity-60">{e.evidence}</span></li>
                           ))}
-                        </div>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 피크 기간 YouTube 영상 */}
-            {peakEvidence && peakEvidence.peakVideos?.length > 0 && (
-              <div>
-                <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-300">
-                  피크 기간 YouTube 영상
-                </h4>
-                <div className="grid gap-2 md:grid-cols-2">
-                  {peakEvidence.peakVideos.slice(0, 6).map((v, i) => (
-                    <a
-                      key={v.videoId}
-                      href={`https://youtu.be/${v.videoId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex gap-2 rounded-lg border border-orange-200 bg-white p-2 transition hover:border-red-400 dark:border-orange-800 dark:bg-slate-900"
-                    >
-                      <img
-                        src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
-                        alt=""
-                        className="h-14 w-24 rounded object-cover"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2 text-[10px] text-slate-400">
-                          <span className="font-mono">PV{i + 1}</span>
-                          <span>{v.publishedAt?.slice(0, 10)}</span>
-                        </div>
-                        <p className="line-clamp-2 text-xs font-semibold text-slate-900 dark:text-slate-100">
-                          {v.title}
-                        </p>
-                        <div className="text-[10px] text-slate-500">
-                          {v.channelTitle} · 👀 {v.viewCount.toLocaleString()}
-                        </div>
+                        </ul>
                       </div>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
+                    )}
+                    {(data.sameDayEvents?.length ?? 0) > 0 && (
+                      <div className="m3-card-outlined">
+                        <h4 className="m3-label-sm mb-2">당일 (D)</h4>
+                        <ul className="space-y-1.5 m3-body-sm">
+                          {data.sameDayEvents!.map((e, i) => (
+                            <li key={i}>{e.event} <span className="m3-body-sm opacity-60">{e.evidence}</span></li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
 
-            {/* 피크 기간 블로그/뉴스 */}
-            {peakEvidence && (peakEvidence.peakBlogs?.length > 0 || peakEvidence.peakNews?.length > 0) && (
-              <div>
-                <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-300">
-                  피크 기간 블로그·뉴스
-                </h4>
-                <div className="space-y-1.5">
-                  {[...(peakEvidence.peakNews ?? []), ...(peakEvidence.peakBlogs ?? [])]
-                    .slice(0, 10)
-                    .map((n, i) => (
-                      <a
-                        key={n.link + i}
-                        href={n.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block rounded border border-orange-100 bg-white px-3 py-2 transition hover:border-green-400 dark:border-orange-900 dark:bg-slate-900"
-                      >
-                        <div className="flex items-start justify-between gap-2 text-[10px]">
-                          <span className="font-mono text-slate-400">PN{i + 1}</span>
-                          <span className="text-slate-400">{n.pubDate?.slice(0, 10)}</span>
+              {/* 키워드 */}
+              {data.topKeywords?.length > 0 && (
+                <section id="spike-keywords">
+                  <h3 className="m3-section-title mb-2">
+                    <span className="m3-icon" style={{ color: "var(--md-primary)" }}>tag</span>
+                    급등 구간 키워드
+                  </h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.topKeywords.map((k, i) => (
+                      <span key={i} className="m3-chip">#{k}</span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* 가설 */}
+              {data.hypotheses?.length > 0 && (
+                <section id="spike-hypotheses">
+                  <h3 className="m3-section-title mb-3">
+                    <span className="m3-icon" style={{ color: "var(--md-primary)" }}>lightbulb</span>
+                    이 급등의 원인 가설
+                  </h3>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {data.hypotheses.map((h, i) => {
+                      const conf = CONF[h.confidence] ?? CONF.medium;
+                      return (
+                        <article key={i} className="m3-card flex flex-col">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="m3-label-sm">가설 {i + 1}</span>
+                            <span className="rounded-m3-sm px-2 py-0.5 text-[11px] font-semibold" style={{ background: conf.bg, color: conf.color }}>
+                              {conf.text}
+                            </span>
+                          </div>
+                          <h4 className="mt-2 text-sm font-bold" style={{ color: "var(--md-on-surface)" }}>{h.title}</h4>
+                          <p className="mt-1.5 flex-1 m3-body-sm leading-relaxed">{h.reasoning}</p>
+                          {h.evidence?.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {h.evidence.slice(0, 4).map((ev, j) => (
+                                <span key={j} className="rounded-m3-sm px-1.5 py-0.5 text-[10px] font-mono" style={{ background: "var(--md-surface-container-high)", color: "var(--md-on-surface-variant)" }}>
+                                  {ev.slice(0, 50)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              {/* 영상 */}
+              {peakEvidence && peakEvidence.peakVideos?.length > 0 && (
+                <section id="spike-videos">
+                  <h3 className="m3-section-title mb-3">
+                    <span className="m3-icon" style={{ color: "var(--md-primary)" }}>smart_display</span>
+                    피크 기간 YouTube 영상
+                  </h3>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {peakEvidence.peakVideos.slice(0, 6).map((v, i) => (
+                      <a key={v.videoId} href={`https://youtu.be/${v.videoId}`} target="_blank" rel="noopener noreferrer"
+                         className="m3-card-outlined flex gap-3 transition hover:shadow-m3-2">
+                        <img src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`} alt="" className="h-14 w-24 rounded-m3-sm object-cover" />
+                        <div className="min-w-0 flex-1">
+                          <div className="m3-body-sm flex justify-between"><span className="font-mono">PV{i + 1}</span><span>{v.publishedAt?.slice(0, 10)}</span></div>
+                          <p className="line-clamp-2 text-sm font-medium" style={{ color: "var(--md-on-surface)" }}>{v.title}</p>
+                          <div className="m3-body-sm">{v.channelTitle} · {v.viewCount.toLocaleString()}회</div>
                         </div>
-                        <h5 className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                          {n.title}
-                        </h5>
-                        <p className="line-clamp-1 text-[11px] text-slate-600 dark:text-slate-400">
-                          {n.description}
-                        </p>
                       </a>
                     ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                </section>
+              )}
 
-            {/* 시사적 댓글 */}
-            {data.topComments?.length > 0 && (
-              <div>
-                <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-300">
-                  시사적 댓글
-                </h4>
-                <div className="grid gap-2 md:grid-cols-2">
-                  {data.topComments.map((c, i) => (
-                    <div
-                      key={i}
-                      className="rounded-lg border border-orange-200 bg-white p-3 dark:border-orange-800 dark:bg-slate-900"
-                    >
-                      <p className="text-sm text-slate-800 dark:text-slate-200">
-                        &ldquo;{c.text}&rdquo;
-                      </p>
-                      <div className="mt-1.5 flex items-center justify-between">
-                        <span className="text-[10px] italic text-orange-700 dark:text-orange-300">
-                          💡 {c.reason}
-                        </span>
-                        <span className="text-[10px] text-slate-400">👍 {c.likeCount}</span>
+              {/* 뉴스 */}
+              {peakEvidence && (peakEvidence.peakBlogs?.length > 0 || peakEvidence.peakNews?.length > 0) && (
+                <section id="spike-news">
+                  <h3 className="m3-section-title mb-3">
+                    <span className="m3-icon" style={{ color: "var(--md-primary)" }}>newspaper</span>
+                    피크 기간 뉴스·블로그
+                  </h3>
+                  <div className="space-y-1.5">
+                    {[...(peakEvidence.peakNews ?? []), ...(peakEvidence.peakBlogs ?? [])]
+                      .slice(0, 10)
+                      .map((n, i) => (
+                        <a key={n.link + i} href={n.link} target="_blank" rel="noopener noreferrer"
+                           className="m3-card-outlined block transition hover:shadow-m3-1">
+                          <div className="flex justify-between m3-body-sm"><span className="font-mono">PN{i + 1}</span><span>{n.pubDate?.slice(0, 10)}</span></div>
+                          <h5 className="text-sm font-medium" style={{ color: "var(--md-on-surface)" }}>{n.title}</h5>
+                          <p className="line-clamp-1 m3-body-sm">{n.description}</p>
+                        </a>
+                      ))}
+                  </div>
+                </section>
+              )}
+
+              {/* 댓글 */}
+              {data.topComments?.length > 0 && (
+                <section id="spike-comments">
+                  <h3 className="m3-section-title mb-3">
+                    <span className="m3-icon" style={{ color: "var(--md-primary)" }}>chat_bubble</span>
+                    주목할 만한 댓글
+                  </h3>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {data.topComments.map((c, i) => (
+                      <div key={i} className="m3-card-outlined">
+                        <p className="text-sm" style={{ color: "var(--md-on-surface)" }}>&ldquo;{c.text}&rdquo;</p>
+                        <div className="mt-1.5 flex items-center justify-between m3-body-sm">
+                          <span style={{ color: "var(--md-primary)" }}>{c.reason}</span>
+                          <span>좋아요 {c.likeCount}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-          </div>
-        )}
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

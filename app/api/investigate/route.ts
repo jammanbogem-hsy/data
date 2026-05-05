@@ -22,13 +22,17 @@ function isValidISO(s: unknown): s is string {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { keyword, keywords, startDate, endDate, timeUnit, deep } = body as {
+  const { keyword, keywords, startDate, endDate, timeUnit, deep, gender, ages, device, compareGender } = body as {
     keyword?: string;
     keywords?: string[];
     startDate?: string;
     endDate?: string;
     timeUnit?: "date" | "week" | "month";
-    deep?: boolean; // true면 2-step 체인 (가설 → 검증 → refine)
+    deep?: boolean;
+    gender?: string;
+    ages?: string[];
+    device?: string;
+    compareGender?: boolean;
   };
 
   // keywords 배열 우선, 없으면 keyword (문자열) → 배열화
@@ -66,7 +70,7 @@ export async function POST(req: Request) {
       collectVideosAndComments(primary, 6, 15).catch(() => ({ videos: [], comments: [] })),
       kwList.length > 1
         ? fetchDataLabTrendMulti(kwList, startD, endD, unit).catch(() => [])
-        : fetchDataLabTrend(primary, startD, endD, unit)
+        : fetchDataLabTrend(primary, startD, endD, unit, { gender: gender ?? "", ages: ages ?? [], device: device ?? "" })
             .then((series) => [{ keyword: primary, series }])
             .catch(() => []),
       // Wikipedia 한국어 pageviews (2015+, 역사 데이터 보강)
@@ -83,6 +87,22 @@ export async function POST(req: Request) {
 
     // 주 키워드 단일 시계열 (기존 UI 호환)
     const primarySeries = multiTrend.find((t) => t.keyword === primary)?.series ?? multiTrend[0]?.series ?? [];
+
+    // 남녀 비교 모드: multiTrend에 남/여 시리즈 추가
+    if (compareGender && kwList.length === 1) {
+      try {
+        const [maleSeries, femaleSeries] = await Promise.all([
+          fetchDataLabTrend(primary, startD, endD, unit, { gender: "m", ages: ages ?? [], device: device ?? "" }),
+          fetchDataLabTrend(primary, startD, endD, unit, { gender: "f", ages: ages ?? [], device: device ?? "" }),
+        ]);
+        multiTrend.push(
+          { keyword: `${primary} (남성)`, series: maleSeries },
+          { keyword: `${primary} (여성)`, series: femaleSeries }
+        );
+      } catch (e) {
+        console.warn("[investigate] gender compare failed", e);
+      }
+    }
 
     // 주 키워드 Claude 1차 분석
     let insight = await investigateWithClaude({
@@ -164,7 +184,7 @@ export async function POST(req: Request) {
       compareInsight,
       verificationTrace,
       evidence: {
-        news: allNews.slice(0, 30),
+        news: allNews.slice(0, 100),
         videos: yt.videos,
         comments: yt.comments.slice(0, 30),
         trend: primarySeries,

@@ -14,26 +14,58 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-        <header className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
-          <nav className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
-            <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-              <span className="text-base">🧠</span>
-              <span>데이터 마이닝</span>
+      <body className="min-h-screen" style={{ background: "var(--md-surface)" }}>
+        {/* M3 Top App Bar */}
+        <header
+          className="sticky top-0 z-50"
+          style={{
+            background: "var(--md-surface-container)",
+            borderBottom: "1px solid var(--md-outline-variant)",
+            boxShadow: "var(--md-elevation-1)",
+          }}
+        >
+          <nav className="mx-auto flex max-w-6xl items-center gap-4 px-5 py-3">
+            <Link href="/" className="flex items-center gap-2.5 no-underline">
+              <span className="m3-icon" style={{ fontSize: 24, color: "var(--md-primary)" }}>
+                query_stats
+              </span>
+              <span className="text-base font-semibold tracking-tight" style={{ color: "var(--md-on-surface)" }}>
+                데이터 마이닝
+              </span>
             </Link>
-            <div className="ml-auto flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+
+            {/* 탭 네비 */}
+            <div className="ml-6 flex items-center gap-1">
+              <NavTab href="/" icon="search_insights" label="키워드 분석" />
+              <NavTab href="/youtube" icon="smart_display" label="YouTube 분석" />
+            </div>
+
+            <div className="ml-auto flex items-center gap-3">
               <Link
                 href="/legacy/topics"
-                className="opacity-70 transition hover:opacity-100"
-                title="예전 초등 수업 토픽 카드 / 온톨로지 그래프 / 트렌드 플로우"
+                className="m3-body-sm opacity-50 transition hover:opacity-100 no-underline"
               >
                 legacy
               </Link>
             </div>
           </nav>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+
+        <main className="mx-auto max-w-6xl px-5 py-8">{children}</main>
       </body>
     </html>
+  );
+}
+
+function NavTab({ href, icon, label }: { href: string; icon: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-1.5 rounded-m3-md px-3 py-2 text-sm font-medium no-underline transition"
+      style={{ color: "var(--md-on-surface-variant)" }}
+    >
+      <span className="m3-icon-sm">{icon}</span>
+      {label}
+    </Link>
   );
 }

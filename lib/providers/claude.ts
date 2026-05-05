@@ -689,7 +689,7 @@ ${commentDigest || "(없음)"}
   // Prompt caching: 고정 시스템 프롬프트를 분리해 병렬 호출 시 90% input 비용 절감
   const resp = await claude().messages.create({
     model: CLAUDE_HAIKU,
-    max_tokens: 2500,
+    max_tokens: 4000,
     system: [
       {
         type: "text",
@@ -757,7 +757,7 @@ const SPIKE_SYSTEM_PROMPT = `당신은 한국어 소셜·검색 데이터 분석
     }
     // 정확히 3개
   ],
-  "summary": "이 급등이 무엇 때문이었는지 종합 2-3문장",
+  "summary": "AI 오버뷰 (Google AI Overview 스타일). 3-4문단으로 작성.\\n\\n첫째 문단: 이 날짜에 무슨 일이 있었는지 전체 상황 요약 (1-2문장).\\n\\n둘째 문단: 구체적 사건과 원인을 나열하며 뉴스 출처 [N#] 인용. 수치와 고유명사 포함.\\n\\n셋째 문단: 사람들의 반응과 전망. 댓글 [C#]이나 영상 [V#] 인용 가능.\\n\\n문단 사이에 빈 줄 넣기. 마크다운 기호(#, **, -) 사용 금지. 순수 텍스트만.",
   "prevDayEvents": [
     { "event": "전날(D-1) 발생한 구체적 사건 한 줄", "evidence": "[N5]" }
   ],
@@ -848,7 +848,7 @@ ${commentDigest || "(없음)"}
 
   const resp = await claude().messages.create({
     model: CLAUDE_HAIKU,
-    max_tokens: 2500,
+    max_tokens: 4000,
     messages: [{ role: "user", content: prompt }],
   });
 
