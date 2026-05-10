@@ -51,6 +51,7 @@ export default function RootLayout({
             <div className="ml-6 flex items-center gap-1 overflow-x-auto" role="tablist" aria-label="분석 메뉴">
               <NavTab href="/" icon="search_insights" label="키워드 분석" />
               <NavTab href="/youtube" icon="smart_display" label="YouTube 분석" />
+              <NavTab href="/lab" icon="psychology" label="실험실" />
             </div>
 
             <div className="ml-auto flex items-center gap-3">

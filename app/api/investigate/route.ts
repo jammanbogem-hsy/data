@@ -9,6 +9,7 @@ import {
   planHypothesisVerification,
   refineHypothesesWithClaude,
 } from "@/lib/providers/claude";
+import { getCache, setCache } from "@/lib/cache";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -61,6 +62,13 @@ export async function POST(req: Request) {
   const unit: "date" | "week" | "month" = timeUnit ?? "date";
 
   try {
+    // 캐시 확인 (같은 키워드+기간이면 저장된 결과 즉시 반환)
+    const cacheId = `${kwList.join(",")}|${startD}|${endD}|${unit}|${deep ? "deep" : ""}`;
+    const cached = getCache<object>("investigate", cacheId);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     // 네이버 수집량 증가 + 카페 추가
     const [newsRecent, newsSim, blog1, blog2, cafe1, yt, multiTrend, wikipediaTrend, keywordInsight] = await Promise.all([
       searchNaverNews(primary, 50).catch(() => []),
@@ -178,7 +186,7 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({
+    const response = {
       keyword: primary,
       keywords: kwList,
       fetchedAt: new Date().toISOString(),
@@ -195,7 +203,12 @@ export async function POST(req: Request) {
         multiTrend,
         wikipediaTrend,
       },
-    });
+    };
+
+    // 캐시 저장 (1시간)
+    setCache("investigate", cacheId, response);
+
+    return NextResponse.json(response);
   } catch (e: unknown) {
     console.error("[investigate]", e);
     const msg = e instanceof Error ? e.message : String(e);
