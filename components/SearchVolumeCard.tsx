@@ -44,7 +44,7 @@ export function SearchVolumeCard({ data }: { data: KeywordInsight }) {
 
       {/* 검색량 카드 */}
       {hasVolume ? (
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <div className="m3-card flex flex-col items-center py-4">
             <span className="m3-icon" style={{ fontSize: 28, color: "var(--md-primary)" }}>search</span>
             <span className="mt-1 text-2xl font-bold" style={{ color: "var(--md-on-surface)" }}>{formatN(data.totalMonthly)}</span>

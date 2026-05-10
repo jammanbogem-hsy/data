@@ -190,16 +190,33 @@ body {
 /* ─── Mobile Responsive (< 768px) ─── */
 @media (max-width: 768px) {
   .m3-card {
-    padding: 1rem;
+    padding: 0.875rem;
   }
   .m3-card-elevated {
-    padding: 1rem;
+    padding: 0.875rem;
   }
   .m3-card-outlined {
-    padding: 1rem;
+    padding: 0.875rem;
   }
   .m3-headline-sm {
     font-size: 1.25rem;
+  }
+  .m3-section-title {
+    font-size: 0.875rem;
+  }
+  .m3-btn-filled {
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+  }
+  /* 테이블 가로 스크롤 */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* SVG 차트 터치 영역 확대 */
+  svg circle[class*="cursor"] {
+    r: 8;
   }
 }
 

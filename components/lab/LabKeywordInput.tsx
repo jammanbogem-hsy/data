@@ -19,7 +19,7 @@ export function LabKeywordInput({ onSubmit, loading = false, placeholder = "í‚¤ì
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-3">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
       <div className="relative flex-1">
         <span
           className="m3-icon-sm absolute left-3 top-1/2 -translate-y-1/2"

@@ -69,7 +69,7 @@ export function InsightSummarySection({
       </div>
 
       {trendStats && (
-        <div className="mt-4 grid grid-cols-3 gap-3 text-center text-sm">
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs sm:gap-3 sm:text-sm">
           <div className="rounded-xl p-3" style={{ background: "var(--md-surface-container-low)" }}>
             <div className="m3-body-sm">최근 7일 평균</div>
             <div className="mt-1 text-lg font-bold tabular-nums" style={{ color: "var(--md-on-surface)" }}>

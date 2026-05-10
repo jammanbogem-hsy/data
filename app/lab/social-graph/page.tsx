@@ -253,8 +253,8 @@ function NetworkGraph({ graph, keyword, onSelectNode }: { graph: SocialGraphResu
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
-        className="mx-auto w-full max-w-[700px] cursor-grab"
-        style={{ minHeight: 420 }}
+        className="mx-auto w-full max-w-[700px] cursor-grab touch-pan-y"
+        style={{ minHeight: 320 }}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
