@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SpikeRange } from "@/lib/spike";
 import { RelatedKeywordsGraph, type RelatedGraphData } from "./RelatedKeywordsGraph";
 import { CommunityComparisonCard, type CommunityComparisonData } from "./CommunityComparisonCard";
@@ -44,6 +44,17 @@ export function DeepAnalysisSection({ keyword, spikes, evidence }: Props) {
   );
   const hasResults = voc || graph || community;
   const spikeChanged = lastRunSpikeIdx !== null && lastRunSpikeIdx !== selectedSpikeIdx;
+  const autoStarted = useRef(false);
+
+  // 첫 번째 급등 구간 자동 분석
+  useEffect(() => {
+    if (autoStarted.current) return;
+    if (spikes.length > 0 && !hasResults && !running) {
+      autoStarted.current = true;
+      runAll();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spikes]);
 
   async function runAll() {
     if (!selectedSpike) return;
@@ -166,8 +177,8 @@ export function DeepAnalysisSection({ keyword, spikes, evidence }: Props) {
           </div>
         )}
         {!running && !hasResults && !errors.voc && !errors.graph && !errors.community && (
-          <div className="py-8 text-center m3-body-md">
-            위 <b>분석 시작</b> 버튼을 눌러주세요.
+          <div className="animate-pulse py-8 text-center m3-body-md" style={{ color: "var(--md-primary)" }}>
+            <span className="m3-icon">hourglass_top</span> 분석을 준비하고 있습니다...
           </div>
         )}
         {activeTab === "voc" && <VocTab voc={voc} error={errors.voc} running={running} />}
